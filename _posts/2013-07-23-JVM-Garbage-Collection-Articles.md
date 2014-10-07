@@ -1,5 +1,6 @@
 ---
 layout: post
+title: A Good JVM Garbage Collection Article
 ---
 一篇不错的文章(from showwair的专栏)
 

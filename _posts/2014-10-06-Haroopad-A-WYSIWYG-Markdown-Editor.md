@@ -1,5 +1,6 @@
 ---
 layout: post
+title: Haroopad - A WYSIWYG Markdown Editor
 ---
 总是记不住这个编辑器的名字，囧，写个post记录一下吧
 
