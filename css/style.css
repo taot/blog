@@ -1,3 +1,7 @@
+ul {
+    margin: 0;
+}
+
 #header {
     height: 6em;
     text-align: center;
@@ -52,22 +56,46 @@ li.post-item .title a:hover {
     text-shadow: 0.4px 0.4px;
 }
 
-li.post-item .tags {
+.tagbar {
     padding-left: 0px;
     margin-top:0.5em;
     margin-bottom:1em;
 }
 
-li.post-item .tag {
+.tag {
     background-color: #317ef3;
     color: white;
     padding: 0.2em 0.5em;
 }
 
-li.post-item time {
+.tagbar time {
     float: right;
 }
 
 li.post-item .more a {
     float: right;
+}
+
+.taglist {
+    text-align: center;
+    margin-top: 1em;
+    font-family: bold;
+}
+
+.taglist .title {
+    font-size: 1.2em;
+    margin-bottom: .5em;
+    background-color: #8AC007;
+    color: white;
+}
+
+.taglist li {
+    margin: 0.2em auto;
+}
+
+.taglist a {
+}
+
+#content h1 {
+    text-align: center;
 }

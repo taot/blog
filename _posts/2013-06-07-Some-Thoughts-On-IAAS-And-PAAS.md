@@ -1,6 +1,8 @@
 ---
 layout: post
 title: Some Thoughs on IAAS and PAAS
+tags:
+  - architecture
 ---
 Recently, I am looking for the techniques for the company's future
 PAAS platform, I've been focused on WS2, but also browsed some other

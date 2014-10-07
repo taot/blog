@@ -4,14 +4,15 @@
             {{ include.post.title }}
         </a>
     </div>
-    <div class="large-12 column tags">
+    {% include tag_bar.html post=include.post %}
+    <!--div class="large-12 column tags">
         {% for tag in include.post.tags %}
         <span class="tag">{{ tag }}</span>
         {% endfor %}
         <time datetime='{{ include.post.date | date: "%Y-%m-%d" }}'>
             {{ include.post.date | date: "%Y-%m-%d" }}
         </time>
-    </div>
+    </div-->
     <p>
         {{ include.post.excerpt }}
     </p>

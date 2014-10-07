@@ -1,6 +1,8 @@
 ---
 layout: post
 title: Interesting Use of SSH
+tags:
+  - linux
 ---
 After reading the "Tracing an SSH Request" part of GitHub's "How We
 Made GitHub Fast" blog, I was wondering how this is done through ssh

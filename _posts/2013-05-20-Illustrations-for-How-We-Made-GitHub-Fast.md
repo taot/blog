@@ -1,6 +1,8 @@
 ---
 layout: post
 title: Illustrations for "How We Made GitHub Fast"
+tags:
+  - architecture
 ---
 GitHub's blog article:
 <a href="https://github.com/blog/530-how-we-made-github-fast">How We Made GitHub Fast</a>

@@ -1,5 +1,7 @@
 ---
 layout: post
+tags:
+  - linux
 ---
 ### Vim
 

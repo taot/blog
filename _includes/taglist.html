@@ -1,10 +1,12 @@
-<div>
-    Tags
+<div class="large-12 column taglist">
+    <div class="title">
+        Tags
+    </div>
+    <ul class="main tags">
+        {% for tag in site.tags %}
+        <li>
+            <a href="{{ site.url }}/tag/{{ tag[0] }}/index.html">{{ tag[0] }}</a>
+        </li>
+        {% endfor %}
+    </ul>
 </div>
-<ul class="main tags">
-    {% for tag in site.tags %}
-    <li class="large-12 column">
-        <a href="{{ site.url }}/tag/{{ tag[0] }}/index.html">{{ tag[0] }}</a>
-    </li>
-    {% endfor %}
-</ul>
