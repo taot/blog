@@ -1,0 +1,11 @@
+<li class="large-12 column">
+    <a href='{{ include.post.url }}'>
+        <time datetime='{{ include.post.date | date: "%Y-%m-%d" }}'>
+            {{ include.post.date | date: "%Y-%m-%d" }}
+        </time>
+        {{ include.post.title }}
+    </a>
+    <p>
+        {{ include.post.excerpt }}
+    </p>
+</li>

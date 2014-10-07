@@ -1,0 +1,24 @@
+---
+layout: default
+---
+<h2 class="large-12 column">Posts Tagged with {{ page.title }}</h2>
+<ul>
+    {% for post in site.posts %}
+    {% for tag in post.tags %}
+    {% if tag == page.tag %}
+    {% include post_item.html post=post %}
+    <!--li class="large-12 column">
+        <a href='{{ post.url }}'>
+            <time style="color:#666;font-size:11px;" datetime='{{ post.date | date: "%Y-%m-%d" }}'>
+                {{ post.date | date: "%Y-%m-%d" }}
+            </time>
+            {{ post.title }}
+        </a>
+        <p>
+            {{ post.excerpt }}
+        </p>
+    </li-->
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+</ul>
