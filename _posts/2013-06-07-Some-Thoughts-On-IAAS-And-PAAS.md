@@ -8,6 +8,8 @@ products.
 
 Here's some of my thoughts of IAAS, PAAS and WSO2.
 
+<!--more-->
+
 ### IAAS vs PAAS
 
 IAAS (Infrastructure As A Service) provides IT infrastructures to

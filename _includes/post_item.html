@@ -1,11 +1,23 @@
-<li class="large-12 column">
-    <a href='{{ include.post.url }}'>
+<li class="large-12 column post-item">
+    <div class="large-12 column title">
+        <a href='{{ include.post.url }}'>
+            {{ include.post.title }}
+        </a>
+    </div>
+    <div class="large-12 column tags">
+        {% for tag in include.post.tags %}
+        <span class="tag">{{ tag }}</span>
+        {% endfor %}
         <time datetime='{{ include.post.date | date: "%Y-%m-%d" }}'>
             {{ include.post.date | date: "%Y-%m-%d" }}
         </time>
-        {{ include.post.title }}
-    </a>
+    </div>
     <p>
         {{ include.post.excerpt }}
     </p>
+    <div class="large-12 column more">
+        <a href='{{ include.post.url }}'>
+            More >>
+        </a>
+    </div>
 </li>

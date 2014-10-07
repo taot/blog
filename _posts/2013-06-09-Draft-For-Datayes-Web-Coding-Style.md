@@ -8,6 +8,8 @@ be considered, but not to an extreme extent. If it's too hard to
 support old IE browers, then we should drop the support and notify the
 users to get Firefox or Chrome.
 
+<!--more-->
+
 ### Javascript
 
 We should following non-intrusive Javascript coding style, meaning the

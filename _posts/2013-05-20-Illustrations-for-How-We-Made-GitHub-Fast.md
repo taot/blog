@@ -11,6 +11,8 @@ Reading GitHub's blog article "How We made GitHub Fast",
 unfortunately, the article does not provide any graph. So I draw
 something on paper (ugly though), to illustrate GitHub's architecture.
 
+<!--more-->
+
 ### Tracing an HTTP Request
 
 The following image shows how an HTTP request is processed.

@@ -8,6 +8,8 @@ tags:
 
 Haskell的函数是纯函数(pure function)，无法进行很多需要副作用(side-effect)的操作，如 IO，Logging等。因此引入了Monad的概念。IO等有副作用的操作都放入Monad中。想用Haskell写出有用的程序，必须理解Monad。
 
+<!--more-->
+
 Monad的定义其实非常简单，以下是Real World Haskell里给的定义：
 
 A type constructor m.

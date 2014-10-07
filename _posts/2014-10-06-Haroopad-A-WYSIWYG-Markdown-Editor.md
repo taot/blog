@@ -6,3 +6,5 @@ layout: post
 [Haroopad主页](http://pad.haroopress.com/)
 
 <img src="{{ site.url }}/images/posts/2014-10-06/haroopad-screenshot.png" alt="haroopad screenshot"/>
+
+<!--more-->
