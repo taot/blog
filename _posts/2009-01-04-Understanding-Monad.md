@@ -22,14 +22,14 @@ A function of type a -> m a for injecting a normal value into the chain, i.e. it
 A function of type m a -> (a -> m b) -> m b，这个函数是用于把几个Monad链接起来。例子：
 
 {% highlight haskell %}
-(>>?) :: Maybe a -> (a -> Maybe b) -> Maybe b
-Nothing >>? _ = Nothing
-Just v  >>? f = f v
+(>>) :: Maybe a -> (a -> Maybe b) -> Maybe b
+Nothing >> _ = Nothing
+Just v  >> f = f v
 {% endhighlight %}
 
-(>>?)就是这样一个函数。函数有两个参数，一个是Maybe a类型，另一个是类型
+(\>\>)就是这样一个函数。函数有两个参数，一个是Maybe a类型，另一个是类型
 是a -> Maybe b的函数。返回值是Maybe b。如果第一个参数是Nothing(注意这是
-个Monad)，则(>>?)返回Nothing(也是Monad)；如果第一个参数是Just v，则返回
+个Monad)，则(\>\>)返回Nothing(也是Monad)；如果第一个参数是Just v，则返回
 f v的值，注意f的返回值是Maybe b类型，也是一个Monad。
 
 A function of type a -> m a，这个函数把一个普通的值注入Monad中，相当于
@@ -47,8 +47,8 @@ return :: a -> m a
 a >> f = a >>= \_ -> f
 {% endhighlight %}
 
-(>>=)就是用于链接Monad的函数。return是用于注入的函数。(>>)是特殊的链接，
-是用(>>=)定义的，不同点是(>>)会忽略前一个Monad的返回的值。
+(\>\>=)就是用于链接Monad的函数。return是用于注入的函数。(\>\>)是特殊的链接，
+是用(\>\>=)定义的，不同点是(\>\>)会忽略前一个Monad的返回的值。
 
 liftM是一个有用的函数，用于方便地混合pure function和Monad
 
@@ -80,7 +80,7 @@ List monad和list comprehensive是等价的。以下两者等价：
 
 {% highlight haskell %}
 comprehensive xs ys =
- [(x,y) | x &lt;- xs, y &lt;- ys]  monadic xs ys = do { x &lt;- xs; y &lt;- ys; return (x,y) }
+  [(x,y) | x <- xs, y <- ys]  monadic xs ys = do { x <- xs; y <- ys; return (x,y) }
 {% endhighlight %}
 
 把monadic形式的展开：
@@ -88,23 +88,25 @@ comprehensive xs ys =
 {% highlight haskell %}
 -- Step 1:
 do
-x &lt;- xs y &lt;- ys return (x, y)
+  x <- xs
+  y <- ys
+  return (x, y)
 
 -- Step 2:
 xs >>= \x ->
-ys >>= \y ->
-[(x, y)]
+  ys >>= \y ->
+    [(x, y)]
 
 -- Step 3:
 concat (map (\x ->
-ys >>= \y ->
-[(x, y)])
-xs)
+  ys >>= \y ->
+    [(x, y)])
+      xs)
 
 -- Step 4:
 concat (map (\x ->
-concat (map (\y -> [(x, y)]) ys ))
-xs)
+  concat (map (\y -> [(x, y)]) ys ))
+    xs)
 {% endhighlight %}
 
 实际的效果就是一个二重循环：对xs里每一个元素，都用函数 \x -> ys >>= \y -> [(x, y)] 求值一次。对ys里的每一个元素，都用函数 \y -> [(x, y)] 求值一次。
