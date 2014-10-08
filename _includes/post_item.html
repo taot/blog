@@ -5,16 +5,8 @@
         </a>
     </div>
     {% include tag_bar.html post=include.post %}
-    <!--div class="large-12 column tags">
-        {% for tag in include.post.tags %}
-        <span class="tag">{{ tag }}</span>
-        {% endfor %}
-        <time datetime='{{ include.post.date | date: "%Y-%m-%d" }}'>
-            {{ include.post.date | date: "%Y-%m-%d" }}
-        </time>
-    </div-->
     <p>
-        {{ include.post.excerpt }}
+        {{ include.post.excerpt | markdownify }}
     </p>
     <div class="large-12 column more">
         <a href='{{ include.post.url }}'>

@@ -3,7 +3,7 @@ layout: default
 ---
 <div class="row">
     <div class="large-10 column">
-        <ul class="main posts">
+        <ul class="posts">
             {% for post in site.posts %}
             {% include post_item.html post=post %}
             {% endfor %}
