@@ -1,3 +1,7 @@
+body {
+    font-family:  "微软雅黑", "Microsoft Yahei", "华文细黑", STXihei, "Warnock Pro", "Goudy Old Style", "Palatino", "Book Antiqua", Georgia, serif;
+}
+
 ul {
     margin: 0;
 }
@@ -56,7 +60,7 @@ li.post-item .title a {
 }
 
 li.post-item .title a:hover {
-    text-shadow: 0.4px 0.4px;
+    text-shadow: 1px 1px gray;
 }
 
 .tagbar {
@@ -73,6 +77,10 @@ li.post-item .title a:hover {
 
 .tagbar time {
     float: right;
+}
+
+li.post-item .more {
+    margin-bottom: 1em;
 }
 
 li.post-item .more a {
@@ -113,4 +121,19 @@ li.post-item .more a {
     background-color: #8AC007;
     color: white;
     padding: 0.2em 0.5em;
+}
+
+pre {
+    border: 1px solid #eeeeee;
+    background-color: #f7f7f7;
+    box-shadow: 2px 2px #eeeeee;
+    margin-bottom: 1.25em;
+    padding: 0.5em 1em;
+}
+
+pre code {
+    font-family: Consolas,"Liberation Mono",Menlo,Courier,monospace;
+    font-size: 1.25em;
+    background-color: inherit;
+    border: none;
 }
