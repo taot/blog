@@ -1,2 +1,4 @@
+blog_name: TERRY's BLOG
+markdown: kramdown
 highlighter: pygments
 excerpt_separator: <!--more-->
