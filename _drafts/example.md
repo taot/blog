@@ -3,6 +3,9 @@ layout: post
 tags:
   - java
 ---
+  1. TOC
+{:toc}
+
 ### Section 1
 
 This is a paragraph
@@ -14,3 +17,7 @@ This is a paragraph
 ![This is an image]({{ site.url }}/images/posts/2014-10-09/image.jpg)
 
 <img src="{{ site.url }}/images/posts/2014-10-09/image.jpg" alt="another image"/>
+
+### Section 2
+
+This is another paragraph.

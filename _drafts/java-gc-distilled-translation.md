@@ -4,7 +4,10 @@ title: Java Garbage Collection Distilled 翻译
 tags:
   - java
 ---
-[Java Garbage Collection Distilled](http://www.infoq.com/articles/Java_Garbage_Collection_Distilled){:target="_blank"}
+原文章：[Java Garbage Collection Distilled](http://www.infoq.com/articles/Java_Garbage_Collection_Distilled){:target="_blank"}
+
+  1. TOC
+{:toc}
 
 Serial, Parallel, Concurrent, CMS, G1, Young Gen, New Gen, Old Gen, Perm Gen, Eden, Tenured, Survivor Spaces, Safepoints, 还有数百个 JVM 的启动参数。当你试着优化 GC 来追求你的 Java 应用的高吞吐量和低延迟，你是否对这些参数感到困惑？如果是，也别担心，你不是一个人。GC 的文档看起来像是飞机的使用手册。每个把手和刻度盘都有详细的解释，但是没有告诉你如何飞起来的指南。这篇文章将尝试去解释如何在特定的压力下选择和优化 GC。
 
@@ -94,5 +97,23 @@ Minor GC collection 的开销通常由向 survivor 和 tenured 空间复制对�
 注意：在 Hotspot 中，minor colleciton 是 stop-the-world 的事件。当堆变大而活动对象变多时，这变成一个大问题。我们已经需要将新生代的回收变成同步的来达到暂停时间的指标。
 
 ### Major Collections
+
+Major collections 回收老年代里的对象，以便腾出空间给从新生代 promote 上来的对象。在多数应用中，大部分程序的状态都在老年代中。对老年代的 GC 算法有很多不同的种类。有些会在老年代填满的时候压缩空间，而有些会并行回收来防止空间被填满。
+
+老年代的回收器会尝试预测什么时候需要进行回收来预防 promotion 失败。回收器会跟踪老年代的 fill 阈值，当超过阈值时会进行回收。当这个阈值不足以满足 promotion 的需求时，就会触发 FullGC。FullGC 先 promote 新生代中所有活动对象，再对老年代进行回收和压缩。Promotion 失败是很昂贵的操作，因为状态和已经 promote 的对象需要被回滚，之后才能进行 FullGC。
+
+注意：为了避免 promotion 失败，你需要调整老年代为容纳 promotion 允许的 padding（-XX:PromotedPadding=<n>）。
+
+注意：当需要增大堆时，会触发 FullGC。可以通过将 -Xms 和 -Xmx 设置为相同的值来避免这些 FullGC。
+
+除了 FullGC，最大的 stop-the-world 暂停是对老年代的压缩。压缩需要的时间与 tenure 空间中的活动对象的数量成线性关系。
+
+有时，增大 survivor 空间和增大对象被 promote 到 tenure 空间的年龄（-XX:MaxTenuringThreshold），可以减小 tenure 空间被填满的速度。然而，这些也会增加 minor collection 的开销和暂停时间，因为在 survivor 空间之间复制对象的开销增大了。
+
+### 串行垃圾收集器
+
+串行收集器（-XX:UseSerialGC）是最简单的垃圾收集器，对单处理器机器是个不错的选择。并且它在各种收集器中有最小的内存足迹。串行收集器对 minor 和 major collection 都使用单线程。对象在 tenure 空间的分配使用简单的向后挪动指针算法。当 tenure 空间满了以后，会触发 major collection。
+
+### 并行垃圾收集器
 
 
