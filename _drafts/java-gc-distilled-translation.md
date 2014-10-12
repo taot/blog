@@ -4,7 +4,7 @@ title: Java Garbage Collection Distilled 翻译
 tags:
   - java
 ---
-原文章：[Java Garbage Collection Distilled](http://www.infoq.com/articles/Java_Garbage_Collection_Distilled){:target="_blank"}
+原文：[Java Garbage Collection Distilled](http://www.infoq.com/articles/Java_Garbage_Collection_Distilled){:target="_blank"}
 
   1. TOC
 {:toc}
@@ -116,4 +116,103 @@ Major collections 回收老年代里的对象，以便腾出空间给从新生�
 
 ### 并行垃圾收集器
 
+并行垃圾收集器有两种形式。Parallel 收集器（-XX:+UseParallelGC）用多线程运行 minor collection，用单线程运行 major collection。Parallel Old 收集器（-XX:+UseParallelOldGC）从 Java 7u4 开始被作为默认设置，它用多线程运行 minor 和 major collection。对象在 tenure 空间中的分配使用简单的挪动指针算法。当 tenure 空间满了之后会触发 major collection。
+
+在多处理器的机器上，Parallel Old 收集器是各种收集器中吞吐率最高的。只有在进行垃圾收集时它才会对进程的运行有影响，用最有效率的算法并行进行垃圾收集。Parallel Old 收集器非常适合批处理任务。
+
+对老年代的收集中，需要保留的对象数量对开销的影响要大于堆的大小的影响。因此，要提升 Parallel Old 收集器的效率，可以提供更多内存，虽然这会延长暂停时间，但是会减小暂停的频率。
+
+这个收集器的 minor collection 是最快的，因为 promotion 只是一个简单的移动指针和复制操作。
+
+对于服务器应用，Parallel Old 收集器应该是第一选择。然而如果 major collection 的暂停超出了应用可以承受的范围，则你需要考虑使用一种并发收集器，并发收集器可以应用运行的同时进行收集 tenure 空间的对象。
+
+注意：在现代的硬件上，压缩老年代的的时候，每 GB 的对象大概会有 1 到 5 秒的暂停时间。
+
+### 并发 Mark Sweep (CMS) 收集器
+
+CMS 收集器（-XX:+UseConcMarkSweepGC）在老年代中运行，在 major collection 时收集不再活动的对象。它与应用并发执行，目标为在老年代中保持足够的空间，避免发生 promotion 失败。
+
+Promotion 失败会触发 FullGC。CMS 按照以下过程运行：
+
+  1. 初始标记（stop-the-world）：找到 GC Roots。
+
+  1. 并发标记：从 GC Roots 出发，标记所有可到达的对象。
+
+  1. 并发预清理：检查在并发标记阶段被更新的对象的引用和被 promote 的对象，进行再次标记。
+
+  1. 重新标记（stop-the-world）：找到在预清理阶段被更新过的对象引用。
+
+  1. 并发扫除：回收死掉对象的内存，更新 free 列表。
+
+  1. 并发重置：重置数据结构，为下次运行做准备。
+
+当老年代中的对象死掉之后，CMS 会回收它的空间并放入 free 列表。当进行 promtion 的时候，必须从 free 列表中找到一块合适的内存来存放 promote 过来的对象。这增大了 promotion 的开销，因此 CMS 的 minor collection 的开销比 Parallel 收集器中的大。
+
+注意：CMS 是不进行压缩的收集器，这会造成老年代的碎片化。Promotion 可能会因为在老年代中找不到一块足够大的内存块而失败。当这发生时，promotion 失败的信息会被记录下来，并且触发一次 FullGC 来压缩活动的 tenure 对象。对于这种压缩驱动的 FullGC， 暂停会大于 Parallel Old 回收器的 major collection，因为 CMS 使用单线程进行压缩。
+
+CMS 大多数情况下和应用并发执行，这有几点含义：第一，处理器的时间被回收器占用了，减少了应用可用的处理器时间。CMS 需要的时间和 tenure 空间中对象的数量成线性关系。第二，在并发 GC 的某些阶段，所有应用的线程必须来到 safepoint，以标记 GC Roots，并且进行并行的重新标记来检查更新。
+
+注意：如果一个应用会产生大量的 tenure 对象的更新，那么重新标记阶段会很费时，极端情况下可能比 Parallel Old 收集器的完全压缩花更多的时间。
+
+CMS 减少了 FullGC 的频率，代价是同时减少了吞吐率，增加了 minor collection 的开销，和更大的内存开销。相比于并行回收器，吞吐率可降低 10% 至 40%，这取决于 promotion 的频率。CMS 同时需要额外的 20% 的内存，来存放额外的数据结构，和浮动垃圾（floating garbage），浮动垃圾是在并发标记的时候漏掉的对象，这些对象在下次周期中才能被回收。
+
+有时，增大新生代和老年代，可以降低 promotion 的频率，并减少碎片化。
+
+注意：当 CMS 无法以足够的速率回收垃圾，来跟上 promotion 的速度，会发生“并行模式失败”（concurrent mode failures），这可以从日志中看到。当回收开始的太晚会发生“并行模式失败”，可以进行优化来解决问题。但是当回收速率达不到 promotion 的速度时，这个也会发生，如果是这种情况，你可能需要修改你的应用来降低 promotion 的压力。增加内存有时会使情况变得更坏，因为 CMS 将需要扫描更多内存。
+
+### Garbage First (G1) 回收器
+
+G1（+XX:+UseG1GC）是 Java 6 引入的新的回收器，现在正式在 Java 7 中支持了。它是一个部分并发的回收算法，同时也尝试在更小的stop-the-world 中增量压缩 tenure 空间，以减少碎片化，最小化 FullGC 的次数。G1 是一个分代回收器，但是与其他回收器不同，它不是将连续的空间用于相同的用途，而是将堆根据不同的用途分成固定大小的区域。
+
+G1 并发地标记区域以跟踪区域间的引用，并且集中对含有空闲空间最多的区域进行收集。这些区域中的对象在 stop-the-world 暂停中被清扫到一个空闲的区域，同时进行了压缩。大于区域大小 50% 的对象被分配到大型区域，大型区域的大小是普通区域的几倍。G1 里，大型区域中的分配和回收都很费时，但是目前还没有什么办法来优化。
+
+![G1 Heap Organization]({{ site.url }}/images/posts/2014-10-11/g1-heap-organization.jpg)
+
+在任何带压缩的收集器中，最大的挑战不是移动对象，而是更新指向这些对象的引用。如果一个对象被很多其他的区域引用，则更新这些引用的时间会比移动对象的时间多很多。G1 使用“记忆集”（Remembered Sets）来跟踪从一个区域中被其他区域引用到的对象。如果记忆集变得很大，那么 G1 会变得相当慢。当把对象从一个区域清扫到另一个区域时，stop-the-world 的时间与有引用的区域数量成正比，这些有引用的区域需要被扫描并且更新。
+
+维护这些记忆集增大了 minor collection 的开销，造成 G1 的暂停时间大于 Parallel Old 和 CMS 收集器的 minor collection。
+
+可以对 G1 的目标延迟进行调整，-XX:MaxGCPauseMillis=<n>，默认值为 200ms。这个目标值会影响每个周期的工作量（仅能尽最大努力调整）。将这个目标设为几十毫秒基本是没有用的，在写这篇文章时，G1 的优化目标不是几十毫秒的延迟。
+
+对于堆的大小较大并且趋于碎片化的应用，并且 0.5-1.0 秒的压缩暂停是可以忍受时，G1 是一个不错的通用回收器。CMS 中会有因为碎片化而带来的暂停，G1 可以降低这种最坏情况下的暂停的频率，代价是更多的 minor collection 和对老年代的增量压缩。多数的暂停被限制在区域中，而不是整个堆的压缩。
+
+同 CMS 一样，G1 也可能跟不上 promotion 的速度，而进行 stop-the-world 的 FullGC。就像 CMS 有 concurrent mode failure，G1 有 evacuation failure，在日志中为 to-space overflow。这发生在没有空闲区域可以进行清扫对象。如果发生这个问题，可以尝试增加堆的大小，增多标记线程，但是有时需要修改应用来降低分配对象的速度。
+
+G1 的一个挑战性的问题是处理被大量引用的对象和区域。在存货对象没有被其他区域大量引用时，增量 stop-the-world 压缩工作得不错。如果一个对象或区域被其他区域大量引用，记忆集就会变得很大，G1 会避免回收这些对象。最终不得不回收时，压缩堆时会造成高频率的中等长度的暂停。
+
+### 其他的并发回收器
+
+CMS 和 G1 常常被称为 “部分并发回收器”。当你观察它们做的工作会发现，新生代、promotion 甚至大部分的老年代的工作不是并发的。CMS 在老年代中大部分是并发的；G1 更像一种 stop-the-world 的增量收集器。CMS 和 G1 都有耗时且频繁的 stop-the-world 事件，而且最坏的情况使它们不适合用于严格要求低延迟的应用，如金融交易和用户交互界面。
+
+有其他的回收器，比如 Oracle JRockit Real Time，IBM Websphere Real Time，和 Azul Zing。JRockit 和 Websphere 的回收器与 CMS 和 G1 相比，在大多数情况下有延迟上的优势，但是经常有吞吐率上的问题和严重的 stop-the-world。Zing 是作者知道的唯一可以真正进行并发回收和压缩，同时在所有代中维持高吞吐率的 Java 回收器。Zing 有 1 毫秒以下的 stop-the-world，但是这是因为阶段切换，与活动对象集的大小无关。
+
+在高分配对象速率下和固定的堆大小时，JRockit RT 在典型情况能达到几十豪秒的暂停时间，但是需要偶尔进行全体压缩暂停。Websphere RT 能通过限制对象分配的速率和活动集的大小，达到 10 毫秒以下的暂停时间。Zing 在高速分配对象时，通过并行化所有阶段，可以达到 1 毫秒以下的暂停时间。不管堆的大小，Zing 都可以维持这样的稳定的性能，使用户可以增大堆大小来达到吞吐率或是对象模型的需求，而不用担心暂停时间增加。
+
+对所有并发收集器来说，要获得更低的延迟，就必须牺牲一部分吞吐率，和内存空间。取决于回收算法，你可能需要牺牲一点吞吐率，但是总是会牺牲很多内存空间。如果是真正的stop-the-world很少的并发，就需要更多的处理器核心做并行处理来达到吞吐率的需求。
+
+注意：所有并发回收器在有足够的内存空间时表现更有效率。作为一个基本原则，你应当设置堆的大小为至少两倍到三倍于活动对象集的大小。然而，随着应用的吞吐率、分配对象和 promotion 的速率的增加，维护并发操作所需的空间也相应增加。所以对于高吞吐率的应用来说，需要有更大的堆空间。现在的机器基本都有很大的内存，因此服务器端的内存空间基本不会成为问题。
+
+### 垃圾回收的监控和调优
+
+要观察你的应用的垃圾回收器的动作，JVM 启动时加上至少这些参数：
+
+{% highlight xml %}
+-verbose:gc
+-Xloggc:<filename>
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-XX:+PrintTenuringDistribution
+-XX:+PrintGCApplicationConcurrentTime
+-XX:+PrintGCApplicationStoppedTime
+{% endhighlight %}
+
+然后用工具（比如 [Chewiebug](https://github.com/chewiebug/GCViewer){:target="_blank"}）加载来分析。
+
+要动态观察 GC 过程，打开 JVisualVM 并且安装 Visual GC 插件。你就能看到动态的 GC 过程，如下图：
+
+![Visual GC]({{ site.url }}/images/posts/2014-10-11/visualgc.jpg)
+
+如果要了解你的应用对 GC 的需求，你需要有能重复运行的有代表性的性能测试。在你理解了不同的回收器的工作原理之后，在不同的 JVM 配置上运行性能测试，直到达到吞吐率和延迟的指标。从用户的角度来测量延迟是很重要的。可以记录下每个请求的延迟时间并画出直方图，可以参看[这里](https://github.com/giltene/HdrHistogram){:target="_blank"}。如果有在你可接受范围之外的延迟的高峰，你可以试着讲他们与 GC 的日志结合起来看是否是 GC 的问题。延迟高峰也有可能是其他问题造成的。另一个有用的工具是 [jHiccup](http://www.jhiccup.com/){:target="_blank"}，它能帮你跟踪 JVM 和系统整体的暂停。
+
+如果延迟的高峰是 GC 造成的，调整 CMS 或者 G1，看是否可以达到目标。有时这是无法做到的，因为应用有很高的对象分配和 promotion 速率，而目标延迟又很低。调整 GC 会是一个很需要技巧的工作，通常需要修改应用来降低分配对象的速率，或者缩短对象的生命周期。如果是这种情况，那么你需要在花时间资源优化 GC 和 购买商业的并发和拥有压缩的 JVM（比如 JRockit Real Time 或者 Azul Zing）中做出权衡。
 
