@@ -1,8 +1,0 @@
-<div class="large-12 column tagbar">
-    {% for tag in include.post.tags %}
-    <span class="tag">{{ tag }}</span>
-    {% endfor %}
-    <time datetime='{{ include.post.date | date: "%Y-%m-%d" }}'>
-        {{ include.post.date | date: "%Y-%m-%d" }}
-    </time>
-</div>

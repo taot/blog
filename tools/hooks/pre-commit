@@ -1,6 +1,0 @@
-#!/bin/sh
-DIR=$(dirname $0)
-FILE=$DIR/../../_layouts/default.html
-echo "Modifying timestamp in $FILE"
-sed -i "s/timestamp: \((.*)\)/timestamp: ($(date))/" $FILE
-git add $FILE
