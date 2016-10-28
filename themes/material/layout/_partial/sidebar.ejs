@@ -1,0 +1,36 @@
+<!-- 右边栏 -->
+<div class="col-md-2">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h3 class="panel-title">标签</h3>
+        </div>
+
+        <div class="panel-body">
+            <% site.tags.each(function(tag) { %>
+            <span> <%= tag.name %> </span>
+            <% }); %>
+        </div>
+    </div>
+
+    <!-- <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h3 class="panel-title">归档</h3>
+        </div>
+        <div class="panel-body">
+            <div>Oct 2016</div>
+            <div>Mar 2015</div>
+            <div>Dec 2014</div>
+        </div>
+    </div> -->
+
+    <!-- <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h3 class="panel-title">最新文章</h3>
+        </div>
+        <div class="panel-body">
+            <div>离散型概率分布</div>
+            <div>概率论基础公式</div>
+            <div>在Nginx上配置PHP</div>
+        </div>
+    </div> -->
+</div>
