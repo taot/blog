@@ -1,1 +1,22 @@
-<%- partial('_partial/archive') %>
+<%
+    var yearMap = {};
+    site.posts.forEach(function(post) {
+        var tagged = false;
+        <!-- console.log(page.tags); -->
+        post.tags && post.tags.forEach(function(tag) {
+            if (tag.name == page.tag) {
+                tagged = true;
+            }
+        });
+        if (tagged) {
+            var year = post.date.year() + '';
+            var list = yearMap[year];
+            if (! list) {
+                list = [];
+                yearMap[year] = list;
+            }
+            list.push(post);
+        }
+    });
+%>
+<%- partial('_partial/archives2', {yearMap: yearMap} ) %>

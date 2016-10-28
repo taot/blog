@@ -1,0 +1,36 @@
+<div class="col-md-8 col-md-offset-1">
+    <%
+        function sortByDate(a, b) {
+            var s1 = a.date.format('YYYYMMDD');
+            var s2 = b.date.format('YYYYMMDD');
+            return s1 - s2;
+        }
+
+        var yearList = [];
+        for (y in yearMap) {
+            yearList.push(y);
+            var list = yearMap[y];
+            list.sort(sortByDate);
+        }
+
+        yearList.sort();
+        yearList.reverse();
+    %>
+    <% yearList.forEach(function(year) { %>
+        <div class="row">
+            <h4> <%= year %> </h4>
+            <% var list = yearMap[year]; %>
+            <% list.forEach(function(post) { %>
+                <div class="col-md-4 archive-item">
+                    <div class="panel panel-default">
+                        <div class="panel-body">
+                            <%= post.date.format('MMM DD') %>
+                            <p> <%= post.title %> </p>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    <% }); %>
+
+</div>

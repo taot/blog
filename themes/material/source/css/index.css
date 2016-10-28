@@ -1,5 +1,5 @@
 a:hover {
-    text-decoration: none;
+    /*text-decoration: none;*/
 }
 
 .excerpt-footer {
@@ -9,6 +9,10 @@ a:hover {
 
 ul {
     list-style-type: none;
+}
+
+.excerpt-footer .label {
+    margin: 5px;
 }
 
 .archive-list a {

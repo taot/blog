@@ -1,1 +1,16 @@
-<%- partial('_partial/archive') %>
+<%
+    var yearMap = {};
+    site.posts.forEach(function(post) {
+        var year = post.date.format('YYYY');
+        if (! page.year || (page.year == year && (post.date.month() + 1) == page.month) ) {
+            var list = yearMap[year];
+            if (! list) {
+                list = [];
+                yearMap[year] = list;
+            }
+            list.push(post);
+
+        }
+    });
+%>
+<%- partial('_partial/archives2', {yearMap: yearMap} ) %>

@@ -28,20 +28,24 @@
     var months = [];
     for (m in monthMap) {
         // console.log(d);
-        var [year, month, sMonth] = m.split(' ');
+        var parts = m.split(' ');
+        var year = parts[0];
+        var month = parts[1];
+        var sMonth = parts[2];
         months.push([year + month, year, month, sMonth, '/archives/' + year + '/' + month]);
     }
     months.sort();
     months.reverse();
     %>
 
+    <!-- 归档 -->
     <div class="panel panel-primary">
         <div class="panel-heading">
             <h3 class="panel-title">归档</h3>
         </div>
         <div class="panel-body archive-list">
             <% months.forEach(function(m) { %>
-                <a href="<%- url_for(m[4]) %>"> <%= m[3] + ' ' + m[2] %> </a>
+                <a href="<%- url_for(m[4]) %>"> <%= m[1] + ' ' + m[3] %> </a>
             <% }) %>
         </div>
     </div>

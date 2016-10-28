@@ -1,102 +1,51 @@
 <!-- 内容 -->
 <div class="col-md-8 col-md-offset-1">
 
-    <div class="row">
-        <h4>2015年</h4>
-        <!-- 博客列表 -->
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
+    <%
+    var yearMap = {};
+    site.posts.forEach(function(post) {
+        var key = post.date.format('YYYY');
+        var list = yearMap[key];
+        if (! list) {
+            list = [];
+            yearMap[key] = list;
+        }
+        list.push(post);
+    })
+    function sortByDate(a, b) {
+        var s1 = a.date.format('YYYYMMDD');
+        var s2 = b.date.format('YYYYMMDD');
+        return s1 - s2;
+    }
+    var yearList = [];
+    for (k in yearMap) {
+        yearList.push(k);
+        var list = yearMap[k];
+        list.sort(sortByDate);
+    }
+    yearList.sort();
+    yearList.reverse();
+    %>
 
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
+    <% yearList.forEach(function(year) { %>
+        <% if (! page.year || page.year == year) { %>
+            <div class="row">
+                <h4> <%= year %> </h4>
+                <% var list = yearMap[year]; %>
+                <% list.forEach(function(post) { %>
+                    <% if (! page.year || page.month == (post.date.month() + 1)) { %>
+                        <div class="col-md-4 archive-item">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <%= post.date.format('MMM DD') %>
+                                    <p> <%= post.title %> </p>
+                                </div>
+                            </div>
+                        </div>
+                    <% } %>
+                <% }); %>
             </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <h4>2014年</h4>
-        <!-- 博客列表 -->
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4 archive-item">
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    Oct 28
-                    <p>离散型概率分布</p>
-                </div>
-            </div>
-        </div>
-    </div>
+        <% } %>
+    <% }); %>
 
 </div>
