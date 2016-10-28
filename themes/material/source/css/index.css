@@ -1,4 +1,17 @@
+a:hover {
+    text-decoration: none;
+}
+
 .excerpt-footer {
     vertical-align: middle;
     line-height: 3.5em;
+}
+
+ul {
+    list-style-type: none;
+}
+
+.archive-list a {
+    display: block;
+    /*margin: 5px 0;*/
 }
