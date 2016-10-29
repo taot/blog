@@ -11,6 +11,7 @@
             yearList.push(y);
             var list = yearMap[y];
             list.sort(sortByDate);
+            list.reverse();
         }
 
         yearList.sort();
@@ -18,15 +19,17 @@
     %>
     <% yearList.forEach(function(year) { %>
         <div class="row">
-            <h4> <%= year %> </h4>
+            <h4 class="col-md-12"> <%= year %> </h4>
             <% var list = yearMap[year]; %>
             <% list.forEach(function(post) { %>
                 <div class="col-md-4 archive-item">
                     <div class="panel panel-default">
-                        <div class="panel-body">
-                            <%= post.date.format('MMM DD') %>
-                            <p> <%= post.title %> </p>
-                        </div>
+                        <a href="<%- url_for(post.path)  %>">
+                            <div class="panel-body">
+                                <%= post.date.format('MMM DD') %>
+                                <p> <%= post.title %> </p>
+                            </div>
+                        </a>
                     </div>
                 </div>
             <% }); %>

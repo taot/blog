@@ -19,3 +19,11 @@ ul {
     display: block;
     /*margin: 5px 0;*/
 }
+
+.archive-item .panel {
+    height: 6em;
+}
+
+.panel a:hover, .panel-heading a:hover {
+    text-decoration: none;
+}
