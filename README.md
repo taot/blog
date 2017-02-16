@@ -16,6 +16,8 @@ npm install -g hexo-cli
 hexo new [layout] <title>
 ```
 
+Use 'post' for [layout] for most case. Or 'hexo new help' to see help.
+
 ### Generate and Start Server
 
 ```bash
