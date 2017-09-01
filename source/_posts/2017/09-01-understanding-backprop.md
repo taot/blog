@@ -15,7 +15,6 @@ And my next step is to code back-propagation by hand, so that I could be more co
 
 # Symbols used in this post
 
-
 $a^l_j$: Activation of neuron $j$ in layer $l$
 
 $w^l_{jk}$: Weight of the connection between neuron $k$ in layer $l-1$ and neuron $j$ in layer $l$
@@ -30,9 +29,110 @@ $$
 a^l_j = \sigma(\sum_k w^l_jk a^{l-1}_k + b^l_j)
 $$
 
-To make our deriviation easier, we define an intermediate variable $z^l_j$
+To make our deriviation easier, define an intermediate variable $z^l_j$
+
+{% math %}
+\begin{aligned}
+z^l_j = \sum_k w^l_{jk} a^{l-1}_k + b^l_j
+\end{aligned}
+{% endmath %}
+
+and then
 
 $$
-a^l_j = \sigma(\sum_k w^l_jk a^{l-1}_k + b^l_j)
-z^l_j = \sum_k w^l_{jk} a^{l-1}_k + b^l_j
+a^l_j = \sigma z^l_j
 $$
+
+And the loss function is defined as
+
+$$
+C = \frac{1}{2} \lVert \mathbf{y} - a^L(\mathbf{x}) \rVert^2
+$$
+
+# Back-propagation forumula
+
+Here I just put four formula for backprob here, and later on I will write the proof of the formula.
+
+{% math %}
+\delta^L_j = \frac{\partial C}{\partial a^L_j} \sigma'(z^L_j) \label{BP1}\tag{BP1}
+{% endmath %}
+
+{% math %}
+\mathbf{\delta}^L = \bigtriangledown_a C \cdot \sigma'(\mathbf{Z}^L) \label{BP1a}\tag{BP1a}
+{% endmath %}
+
+{% math %}
+\delta^l_j = \frac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j) \tag{BP2}
+{% endmath %}
+
+{% math %}
+\mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T ] \odot \sigma' (\mathbf{z}^l) \tag{BP2a}
+{% endmath %}
+
+{% math %}
+\frac{\partial C}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j} = \delta^L_j \tag{BP3}
+{% endmath %}
+
+{% math %}
+\frac{\partial C}{\partial w^l_{jk}} = a^{l-1}_k \delta^l_j \tag{BP4}
+{% endmath %}
+
+# Deriviation
+
+The error for output layer against $z$
+
+{% math %}
+\delta^L_j = \sum_k \frac{\partial C}{\partial a^L_k} \frac{\partial a^L_k}{\partial z^L_j} = \frac{\partial C}{\partial a^L_j} \sigma' (z^L_j)
+{% endmath %}
+
+then in the matrix form:
+
+{% math %}
+\mathbf{\delta}^L = \frac{\partial C}{\partial \mathbf{z}} = \bigtriangledown_\mathbf{a} C \cdot \sigma' (\mathbf{z}^L)
+{% endmath %}
+
+Then the error for hidden layers
+
+{% math %}
+\delta^l_j = \frac{\partial C}{\partial z^l_j} = \sum_k \frac{\partial C}{\partial z^{l+1}_k} \cdot \frac{\partial z^{l+1}_k}{\partial z^l_j} = \sum_k \delta^{l+1}_k \cdot \frac{\partial z^{l+1}_k}{\partial z^l_j}
+{% endmath %}
+
+{% math %}
+z^{l+1}_k = \sum_m w^{l+1}_{km} \cdot \sigma (z^l_m) + b^{l+1}_k
+{% endmath %}
+
+{% math %}
+\frac{\partial z^{l+1}_k}{\partial z^l_j} = w^{l+1}_{kj} \cdot \sigma' (z^l_j)
+{% endmath %}
+
+then we get:
+
+{% math %}
+\delta^l_j = \frac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j)
+{% endmath %}
+
+Write it in matrix form:
+
+{% math %}
+\mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T ] \odot \sigma' (\mathbf{z}^l)
+{% endmath %}
+
+{% math %}
+\frac{\partial C}{\partial b^l_j} = \sum_k \frac{\partial C}{\partial z^l_k} \cdot \frac{\partial z^l_k}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j} = \sigma^l_j
+{% endmath %}
+
+{% math %}
+\frac{\partial C}{\partial w^l_{jk}} = \sum_m \frac{\partial C}{\partial z^l_m} \cdot \frac{\partial z^l_m}{\partial w^l_{jk}}
+{% endmath %}
+
+because
+
+{% math %}
+z^l_m = \sum_n w^l_{mn} a^{l-1}_n + b^l_m
+{% endmath %}
+
+and when and only when m = j, n = k, the derivative is not 0
+
+{% math %}
+\frac{\partial C}{\partial w^l_{jk}} = \frac{\partial C}{\partial z^l_j} \cdot a^{l-1}_k = \sigma^l_j a^{l-1}_k
+{% endmath %}

@@ -68,8 +68,16 @@ theme: material
 math:
   engine: 'mathjax' # or 'katex'
 
-  # mathjax:
-  #     src: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
+  mathjax:
+    src: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML'
+    config:
+      tex2jax:
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ]
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        processEscapes: true
+      TeX:
+        equationNumbers:
+          autoNumber: "AMS"
 
   # katex:
   #     css: "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.5.1/katex.min.css"
