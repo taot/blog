@@ -10,7 +10,7 @@ tags:
 {% math %}
 \begin{aligned}
 f(x) & = \frac {1} {b - a}, a \leq x \leq b \\
-f(x) & = 0, 其他
+f(x) & = 0
 \end{aligned}
 {% endmath %}
 

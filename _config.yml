@@ -68,10 +68,15 @@ theme: material
 math:
   engine: 'mathjax' # or 'katex'
 
-  katex:
-    css: custom_css_source
-    js: custom_js_source # not used
-    config:
+  # mathjax:
+  #     src: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
+
+  # katex:
+  #     css: "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.5.1/katex.min.css"
+  #     js: "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.5.1/katex.min.js"
+    # css: custom_css_source
+    # js: custom_js_source # not used
+    # config:
       # KaTeX config
 
 # Deployment
