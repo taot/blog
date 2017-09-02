@@ -23,13 +23,13 @@ $b^l_j$: Bias of neuron $j$ in layer $l$
 
 $\sigma$: Activation function
 
-Then we have the following form according to neural network definition:
+We have the following formula according to the definition of neural network:
 
 $$
 a^l_j = \sigma(\sum_k w^l_jk a^{l-1}_k + b^l_j)
 $$
 
-To make our deriviation easier, define an intermediate variable $z^l_j$
+And to make our deriviation easier, define an intermediate variable $z^l_j$ to be the sum of weights and bias:
 
 {% math %}
 \begin{aligned}
@@ -37,21 +37,27 @@ z^l_j = \sum_k w^l_{jk} a^{l-1}_k + b^l_j
 \end{aligned}
 {% endmath %}
 
-and then
+so
 
 $$
 a^l_j = \sigma z^l_j
 $$
 
-And the loss function is defined as
+And we use minimum squared error as the loss function (the loss function needs to satisfy two assumptions, which we just ignore here.):
 
 $$
 C = \frac{1}{2} \lVert \mathbf{y} - a^L(\mathbf{x}) \rVert^2
 $$
 
-# Back-propagation forumula
+Then we define the error of a layer, and it's kind of the combination of how the weights and biases should change in a training pass. And the error is used in equations BP3 and BP4.
 
-Here I just put four formula for backprob here, and later on I will write the proof of the formula.
+$$
+\sigma^l_j = \frac{\partial C}{\partial z^l_j}
+$$
+
+# Back-propagation equations
+
+Here I just write down the four equations for backprob here, and later on I will present the proof of the formula.
 
 {% math %}
 \delta^L_j = \frac{\partial C}{\partial a^L_j} \sigma'(z^L_j) \label{BP1}\tag{BP1}
@@ -77,35 +83,43 @@ Here I just put four formula for backprob here, and later on I will write the pr
 \frac{\partial C}{\partial w^l_{jk}} = a^{l-1}_k \delta^l_j \tag{BP4}
 {% endmath %}
 
-# Deriviation
+# Deriviation of the equations
 
-The error for output layer against $z$
+## BP1 and BP1a
+
+Equations BP1 and BP1a calculate the error of the output layer. By using chain-rule of partial deriviation, we get:
 
 {% math %}
 \delta^L_j = \sum_k \frac{\partial C}{\partial a^L_k} \frac{\partial a^L_k}{\partial z^L_j} = \frac{\partial C}{\partial a^L_j} \sigma' (z^L_j)
 {% endmath %}
 
-then in the matrix form:
+BP1a is just the matrix form of BP1, but it gives us a more gloabal view:
 
 {% math %}
 \mathbf{\delta}^L = \frac{\partial C}{\partial \mathbf{z}} = \bigtriangledown_\mathbf{a} C \cdot \sigma' (\mathbf{z}^L)
 {% endmath %}
 
-Then the error for hidden layers
+## BP2 and BP2a
+
+Then the error for hidden layers. Here we calculate the partial deriviation of layer $l$ against that of layer $l+1$, since we need to back-propagate the error from higher layer to lower layer.
 
 {% math %}
 \delta^l_j = \frac{\partial C}{\partial z^l_j} = \sum_k \frac{\partial C}{\partial z^{l+1}_k} \cdot \frac{\partial z^{l+1}_k}{\partial z^l_j} = \sum_k \delta^{l+1}_k \cdot \frac{\partial z^{l+1}_k}{\partial z^l_j}
 {% endmath %}
 
+because
+
 {% math %}
 z^{l+1}_k = \sum_m w^{l+1}_{km} \cdot \sigma (z^l_m) + b^{l+1}_k
 {% endmath %}
+
+and it's partial deriviation:
 
 {% math %}
 \frac{\partial z^{l+1}_k}{\partial z^l_j} = w^{l+1}_{kj} \cdot \sigma' (z^l_j)
 {% endmath %}
 
-then we get:
+so we get:
 
 {% math %}
 \delta^l_j = \frac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j)
@@ -117,9 +131,23 @@ Write it in matrix form:
 \mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T ] \odot \sigma' (\mathbf{z}^l)
 {% endmath %}
 
+## BP3
+
 {% math %}
 \frac{\partial C}{\partial b^l_j} = \sum_k \frac{\partial C}{\partial z^l_k} \cdot \frac{\partial z^l_k}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j} = \sigma^l_j
 {% endmath %}
+
+It's straight forward because
+
+{% math %}
+z^l_m = \sum_n w^l_{mn} a^{l-1}_n + b^l_m
+{% endmath %}
+
+And the part $\frac{\partial z^l_k}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j}$ is 1 only when $k = j$, otherwise it's 0.
+
+## BP4
+
+Similarly,
 
 {% math %}
 \frac{\partial C}{\partial w^l_{jk}} = \sum_m \frac{\partial C}{\partial z^l_m} \cdot \frac{\partial z^l_m}{\partial w^l_{jk}}
@@ -131,7 +159,7 @@ because
 z^l_m = \sum_n w^l_{mn} a^{l-1}_n + b^l_m
 {% endmath %}
 
-and when and only when m = j, n = k, the derivative is not 0
+and when and only when m = j, n = k, the derivative is not 0, so here we get BP4:
 
 {% math %}
 \frac{\partial C}{\partial w^l_{jk}} = \frac{\partial C}{\partial z^l_j} \cdot a^{l-1}_k = \sigma^l_j a^{l-1}_k
