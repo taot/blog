@@ -25,9 +25,9 @@ $\sigma$: Activation function
 
 We have the following formula according to the definition of neural network:
 
-$$
-a^l_j = \sigma(\sum_k w^l_jk a^{l-1}_k + b^l_j)
-$$
+{% math %}
+a^l_j = \sigma(\sum_k w^l_{jk} a^{l-1}_k + b^l_j)
+{% endmath %}
 
 And to make our deriviation easier, define an intermediate variable $z^l_j$ to be the sum of weights and bias:
 
@@ -64,7 +64,7 @@ Here I just write down the four equations for backprob here, and later on I will
 {% endmath %}
 
 {% math %}
-\mathbf{\delta}^L = \bigtriangledown_a C \cdot \sigma'(\mathbf{Z}^L) \label{BP1a}\tag{BP1a}
+\mathbf{\delta}^L = \bigtriangledown_a C \cdot \sigma'(\mathbf{z}^L) \label{BP1a}\tag{BP1a}
 {% endmath %}
 
 {% math %}
@@ -72,7 +72,7 @@ Here I just write down the four equations for backprob here, and later on I will
 {% endmath %}
 
 {% math %}
-\mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T ] \odot \sigma' (\mathbf{z}^l) \tag{BP2a}
+\mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T \mathbf{\delta}^{l+1} ] \odot \sigma' (\mathbf{z}^l) \tag{BP2a}
 {% endmath %}
 
 {% math %}
@@ -128,7 +128,7 @@ so we get:
 Write it in matrix form:
 
 {% math %}
-\mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T ] \odot \sigma' (\mathbf{z}^l)
+\mathbf{\delta}^l = [ (\mathbf{W}^{l+1})^T \mathbf{\delta}^{l+1} ] \odot \sigma' (\mathbf{z}^l)
 {% endmath %}
 
 ## BP3
