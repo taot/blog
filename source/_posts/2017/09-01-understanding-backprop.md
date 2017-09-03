@@ -46,13 +46,13 @@ $$
 And we use minimum squared error as the loss function (the loss function needs to satisfy two assumptions, which we just ignore here.):
 
 $$
-C = \frac{1}{2} \lVert \mathbf{y} - a^L(\mathbf{x}) \rVert^2
+C = \dfrac{1}{2} \lVert \mathbf{y} - a^L(\mathbf{x}) \rVert^2
 $$
 
 Then we define the error of a layer, and it's kind of the combination of how the weights and biases should change in a training pass. And the error is used in equations BP3 and BP4.
 
 $$
-\sigma^l_j = \frac{\partial C}{\partial z^l_j}
+\sigma^l_j = \dfrac{\partial C}{\partial z^l_j}
 $$
 
 # Back-propagation equations
@@ -60,7 +60,7 @@ $$
 Here I just write down the four equations for backprob here, and later on I will present the proof of the formula.
 
 {% math %}
-\delta^L_j = \frac{\partial C}{\partial a^L_j} \sigma'(z^L_j) \label{BP1}\tag{BP1}
+\delta^L_j = \dfrac{\partial C}{\partial a^L_j} \sigma'(z^L_j) \label{BP1}\tag{BP1}
 {% endmath %}
 
 {% math %}
@@ -68,7 +68,7 @@ Here I just write down the four equations for backprob here, and later on I will
 {% endmath %}
 
 {% math %}
-\delta^l_j = \frac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j) \tag{BP2}
+\delta^l_j = \dfrac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j) \tag{BP2}
 {% endmath %}
 
 {% math %}
@@ -76,11 +76,11 @@ Here I just write down the four equations for backprob here, and later on I will
 {% endmath %}
 
 {% math %}
-\frac{\partial C}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j} = \delta^L_j \tag{BP3}
+\dfrac{\partial C}{\partial b^l_j} = \dfrac{\partial C}{\partial z^l_j} = \delta^L_j \tag{BP3}
 {% endmath %}
 
 {% math %}
-\frac{\partial C}{\partial w^l_{jk}} = a^{l-1}_k \delta^l_j \tag{BP4}
+\dfrac{\partial C}{\partial w^l_{jk}} = a^{l-1}_k \delta^l_j \tag{BP4}
 {% endmath %}
 
 # Deriviation of the equations
@@ -90,13 +90,13 @@ Here I just write down the four equations for backprob here, and later on I will
 Equations BP1 and BP1a calculate the error of the output layer. By using chain-rule of partial deriviation, we get:
 
 {% math %}
-\delta^L_j = \sum_k \frac{\partial C}{\partial a^L_k} \frac{\partial a^L_k}{\partial z^L_j} = \frac{\partial C}{\partial a^L_j} \sigma' (z^L_j)
+\delta^L_j = \sum_k \dfrac{\partial C}{\partial a^L_k} \dfrac{\partial a^L_k}{\partial z^L_j} = \dfrac{\partial C}{\partial a^L_j} \sigma' (z^L_j)
 {% endmath %}
 
 BP1a is just the matrix form of BP1, but it gives us a more gloabal view:
 
 {% math %}
-\mathbf{\delta}^L = \frac{\partial C}{\partial \mathbf{z}} = \bigtriangledown_\mathbf{a} C \cdot \sigma' (\mathbf{z}^L)
+\mathbf{\delta}^L = \dfrac{\partial C}{\partial \mathbf{z}} = \bigtriangledown_\mathbf{a} C \cdot \sigma' (\mathbf{z}^L)
 {% endmath %}
 
 ## BP2 and BP2a
@@ -104,7 +104,7 @@ BP1a is just the matrix form of BP1, but it gives us a more gloabal view:
 Then the error for hidden layers. Here we calculate the partial deriviation of layer $l$ against that of layer $l+1$, since we need to back-propagate the error from higher layer to lower layer.
 
 {% math %}
-\delta^l_j = \frac{\partial C}{\partial z^l_j} = \sum_k \frac{\partial C}{\partial z^{l+1}_k} \cdot \frac{\partial z^{l+1}_k}{\partial z^l_j} = \sum_k \delta^{l+1}_k \cdot \frac{\partial z^{l+1}_k}{\partial z^l_j}
+\delta^l_j = \dfrac{\partial C}{\partial z^l_j} = \sum_k \dfrac{\partial C}{\partial z^{l+1}_k} \cdot \dfrac{\partial z^{l+1}_k}{\partial z^l_j} = \sum_k \delta^{l+1}_k \cdot \dfrac{\partial z^{l+1}_k}{\partial z^l_j}
 {% endmath %}
 
 because
@@ -116,13 +116,13 @@ z^{l+1}_k = \sum_m w^{l+1}_{km} \cdot \sigma (z^l_m) + b^{l+1}_k
 and it's partial deriviation:
 
 {% math %}
-\frac{\partial z^{l+1}_k}{\partial z^l_j} = w^{l+1}_{kj} \cdot \sigma' (z^l_j)
+\dfrac{\partial z^{l+1}_k}{\partial z^l_j} = w^{l+1}_{kj} \cdot \sigma' (z^l_j)
 {% endmath %}
 
 so we get:
 
 {% math %}
-\delta^l_j = \frac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j)
+\delta^l_j = \dfrac{\partial C}{\partial z^l_j} = (\sum_k \delta^{l+1}_k w^{l+1}_{kj}) \cdot \sigma' (z^l_j)
 {% endmath %}
 
 Write it in matrix form:
@@ -134,7 +134,7 @@ Write it in matrix form:
 ## BP3
 
 {% math %}
-\frac{\partial C}{\partial b^l_j} = \sum_k \frac{\partial C}{\partial z^l_k} \cdot \frac{\partial z^l_k}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j} = \sigma^l_j
+\dfrac{\partial C}{\partial b^l_j} = \sum_k \dfrac{\partial C}{\partial z^l_k} \cdot \dfrac{\partial z^l_k}{\partial b^l_j} = \dfrac{\partial C}{\partial z^l_j} = \sigma^l_j
 {% endmath %}
 
 It's straight forward because
@@ -143,14 +143,14 @@ It's straight forward because
 z^l_m = \sum_n w^l_{mn} a^{l-1}_n + b^l_m
 {% endmath %}
 
-And the part $\frac{\partial z^l_k}{\partial b^l_j} = \frac{\partial C}{\partial z^l_j}$ is 1 only when $k = j$, otherwise it's 0.
+And the part $\dfrac{\partial z^l_k}{\partial b^l_j} = \dfrac{\partial C}{\partial z^l_j}$ is 1 only when $k = j$, otherwise it's 0.
 
 ## BP4
 
 Similarly,
 
 {% math %}
-\frac{\partial C}{\partial w^l_{jk}} = \sum_m \frac{\partial C}{\partial z^l_m} \cdot \frac{\partial z^l_m}{\partial w^l_{jk}}
+\dfrac{\partial C}{\partial w^l_{jk}} = \sum_m \dfrac{\partial C}{\partial z^l_m} \cdot \dfrac{\partial z^l_m}{\partial w^l_{jk}}
 {% endmath %}
 
 because
@@ -162,5 +162,5 @@ z^l_m = \sum_n w^l_{mn} a^{l-1}_n + b^l_m
 and when and only when m = j, n = k, the derivative is not 0, so here we get BP4:
 
 {% math %}
-\frac{\partial C}{\partial w^l_{jk}} = \frac{\partial C}{\partial z^l_j} \cdot a^{l-1}_k = \sigma^l_j a^{l-1}_k
+\dfrac{\partial C}{\partial w^l_{jk}} = \dfrac{\partial C}{\partial z^l_j} \cdot a^{l-1}_k = \sigma^l_j a^{l-1}_k
 {% endmath %}
