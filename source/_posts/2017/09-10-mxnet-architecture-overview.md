@@ -206,3 +206,45 @@ virtual void Backward(const OpContext &ctx,
 某些操作可能不需要所有参数：out_grad, in_data, 和 out_data。你可以用 OperatorProperty 类的 DeclareBackwardDependency 接口来指定它们的依赖关系。
 
 ### Operator Property (操作的属性)
+
+卷积可以有多种实现方式，你可能想在各种方式之间切换以实现最佳性能。因此，我们把操作的语义接口从他的实现接口（Operator 类）中剥离出来，放到 OperatorProperty 类。OperatorProperty 的接口包含：
+
+  * InferShape
+
+  ```cpp
+  virtual bool InferShape(std::vector<TShape> *in_shape,
+                          std::vector<TShape> *out_shape,
+                          std::vector<TShape> *aux_shape) const = 0;
+  ```
+
+  这个接口有两个目的：
+
+    * 告诉系统每个输入张量和输出张量的形状，以便在调用 Forward 和 Backward 之前分配空间。
+
+    * 在执行之前检查参数的大小，保证没有明显的错误。in_shape 中指定的形状是被系统设置的（从前一个操作的 out_shape 中得到）。当获得的信息不足以推断形状时，InferShape 返回 false，并且当参数形状不一致时报错。
+
+    * 请求资源: 像 cudnnConvolutionForward 之类的操作计算时需要一个工作区（workspace）。如果系统能够管理工作区，就可以进行优化，比如重用空间等。为此，MXNet 定义了两个接口：
+
+    ```cpp
+    virtual std::vector<ResourceRequest> ForwardResource(const std::vector<TShape> &in_shape) const;
+    virtual std::vector<ResourceRequest> BackwardResource(const std::vector<TShape> &in_shape) const;
+    ```
+
+    ResourceRequest 结构（在 resource.h 中）目前仅包括一个类型标志：
+
+    ```cpp
+    struct ResourceRequest {
+        enum Type {
+            kRandom,  // get a mshadow::Random object
+            kTempSpace,  // request temporary space
+        };
+        Type type;
+    };
+    ```
+
+    如果 ForwardResource 和 BackwardResource 返回非空的数组，系统就会通过 Operator 类的 Forward 和 Backward 接口的 ctx 参数，来提供相应的资源。要访问这些资源，就使用：
+
+    ```cpp
+    auto tmp_space_res = ctx.requested[kTempSpace].get_space(some_shape, some_stream);
+    auto rand_res = ctx.requested[kRandom].get_random(some_stream);
+    ```
