@@ -68,7 +68,7 @@ RunContext 包含了运行时的信息，这些信息由引擎来决定。
 struct RunContext {
     // stream pointer which could be safely cast to
     // cudaStream_t* type
-    void *stream
+    void* stream
 };
 ```
 
@@ -248,3 +248,179 @@ virtual void Backward(const OpContext &ctx,
     auto tmp_space_res = ctx.requested[kTempSpace].get_space(some_shape, some_stream);
     auto rand_res = ctx.requested[kRandom].get_random(some_stream);
     ```
+
+    示例请见 src/operator/cudnn_convolution-inl.h
+
+  * Backward dependency (反向依赖): 让我们看一下两个不同的操作的函数声明（为了展示，我们给每个参数加上了名字）：
+
+  ```cpp
+  void FullyConnectedForward(TBlob weight, TBlob in_data, TBlob out_data);
+  void FullyConnectedBackward(TBlob weight, TBlob in_data, TBlob out_grad, TBlob in_grad);
+
+  void PoolingForward(TBlob in_data, TBlob out_data);
+  void PoolingBackward(TBlob in_data, TBlob out_data, TBlob out_grad, TBlob in_grad);
+  ```
+
+  注意 FullyConnectedForward 中的 out_data 没有在 FullyConnectedBackward 中被用到，而 PoolingBackward 用到了 PoolingForward 的所有参数。因此对于 FullyConnectedForward，out_data 张量可以在使用完之后马上释放空间，因为相应的反向操作不需要它。这给系统提供机会来尽早清理掉一些张量。我们提供了一个接口来指明这种情况：
+
+  ```cpp
+  virtual std::vector<int> DeclareBackwardDependency(
+      const std::vector<int> &out_grad,
+      const std::vector<int> &in_data,
+      const std::vector<int> &out_data) const;
+  ```
+
+  参数 vector 中的 int 是 ID，用来区分不同的数组。让我们看一下这个接口是如何为 FullyConnected 和 Pooling 指定不同的依赖关系：
+
+  ```cpp
+  std::vector<int> FullyConnectedProperty::DeclareBackwardDependency(
+      const std::vector<int> &out_grad,
+      const std::vector<int> &in_data,
+      const std::vector<int> &out_data) const {
+          return {out_grad[0], in_data[0]};  // NOTE: out_data[0] is NOT included
+  }
+  std::vector<int> PoolingProperty::DeclareBackwardDependency(
+      const std::vector<int> &out_grad,
+      const std::vector<int> &in_data,
+      const std::vector<int> &out_data) const {
+          return {out_grad[0], in_data[0], out_data[0]};
+  }
+  ```
+
+  * In place Option (原地更新选项)：为了节省更多的内存，你可以使用原地更新（in-place updates）。它们适用于输入张量和输出张量有相同形状时的元素对元素的操作（element-wise operations）。你使用以下接口来指定原地更新：
+
+  ```cpp
+  virtual std::vector<std::pair<int, void*>> ElewiseOpProperty::ForwardInplaceOption(
+      const std::vector<int> &in_data,
+      const std::vector<void*> &out_data) const {
+          return { {in_data[0], out_data[0]} };
+  }
+  virtual std::vector<std::pair<int, void*>> ElewiseOpProperty::BackwardInplaceOption(
+      const std::vector<int> &out_grad,
+      const std::vector<int> &in_data,
+      const std::vector<int> &out_data,
+      const std::vector<void*> &in_grad) const {
+          return { {out_grad[0], in_grad[0]} }
+  }
+  ```
+
+  这段代码告诉系统，在 Forward 中，in_data[0] 和 out_data[0] 张量可以共用同一块内存空间，而在 Backward 中，out_grad[0] 和 in_grad[0] 可以共用空间。
+
+  > **重要:** 即使你按照以上代码指定了共享选项，系统不保证输入和输出张量就会共享同一块空间。实际上，这只是给系统一个建议，最终系统来决定是否要共享空间。不管怎样，这个决定对你来说是透明的，所以实际实现 Forward 和 Backward 的时候，不需要考虑这些。
+
+  * Expose Operator to Python (将操作暴露给 Python): 因为 C++ 的限制，你需要实现以下接口：
+
+  ```cpp
+  // initial the property class from a list of key-value string pairs
+  virtual void Init(const vector<pair<string, string>> &kwargs) = 0;
+  // return the parameters in a key-value string map
+  virtual map<string, string> GetParams() const = 0;
+  // return the name of arguments (for generating signature in python)
+  virtual vector<string> ListArguments() const;
+  // return the name of output values
+  virtual vector<string> ListOutputs() const;
+  // return the name of auxiliary states
+  virtual vector<string> ListAuxiliaryStates() const;
+  // return the number of output values
+  virtual int NumOutputs() const;
+  // return the number of visible outputs
+  virtual int NumVisibleOutputs() const;
+  ```
+
+### 从 Operator Property 创建 Operator
+
+OperatorProperty 包含了 Operator 的所有的语义上的属性。它也负责为计算过程创建 Operator。
+
+#### 创建 Operator
+
+实现 OperatorProperty 中的这个接口：
+
+```cpp
+virtual Operator* CreateOperator(Context ctx) const = 0;
+```
+
+例如：
+
+```cpp
+class ConvolutionOp {
+public:
+    void Forward( ... ) { ... }
+    void Backward( ... ) { ... }
+};
+class ConvolutionOpProperty : public OperatorProperty {
+public:
+    Operator* CreateOperator(Context ctx) const {
+        return new ConvolutionOp;
+    }
+};
+```
+
+#### Operator 的参数化
+
+当你实现一个卷积操作时，你需要知道核的大小 (kernel size)，步长的大小 (stride size)，填补的大小 (padding size)，等等。这些参数应当在 Forward 和 Backward 接口被调用之前传给 Operator。你可以定义一个 ConvolutionParam 结构，如下：
+
+```cpp
+#include
+struct ConvolutionParam : public dmlc::Parameter<ConvolutionParam> {
+    TShape kernel, stride, pad;
+    uint32_t num_filter, num_group, workspace;
+    bool no_bias;
+};
+```
+
+把它放在 ConvolutionOpProperty 中，并且在创建 Operator 时传进去：
+
+```cpp
+class ConvolutionOp {
+public:
+    ConvolutionOp(ConvolutionParam p): param_(p) {}
+    void Forward( ... ) { ... }
+    void Backward( ... ) { ... }
+private:
+    ConvolutionParam param_;
+};
+class ConvolutionOpProperty : public OperatorProperty {
+public:
+    void Init(const vector<pair<string, string>& kwargs) {
+        // initialize param_ using kwargs
+    }
+    Operator* CreateOperator(Context ctx) const {
+        return new ConvolutionOp(param_);
+    }
+private:
+    ConvolutionParam param_;
+};
+```
+
+使用以下宏来把 Operator 的 Property 类和 Param 类注册到 MXNet：
+
+```cpp
+DMLC_REGISTER_PARAMETER(ConvolutionParam);
+MXNET_REGISTER_OP_PROPERTY(Convolution, ConvolutionOpProperty);
+```
+
+第一个参数是名字字符串，第二个参数是 Property 的类名。
+
+### 关于接口的总结
+
+到目前为止，我们基本上涵盖了定义一个 Operator 的全部接口。让我们回顾以下：
+
+  * 使用 Operator 接口来实现你的计算逻辑 (Forward 和 Backward)。
+
+  * 使用 OperatorProperty 接口来：
+
+    * 向操作传递参数（可以使用 Init 接口）
+
+    * 使用 CreateOperator 接口来创建操作
+
+    * 正确地实现描述操作的接口，例如参数名，等等
+
+    * 正确地实现 InferShape 接口来设置输出张量的形状
+
+    * [可选] 如果需要额外的资源，实现 ForwardResource 和 BackwardResource
+
+    * [可选] 如果 Backward 不需要用到 Forward 的所有输入和输出，实现 DeclareBackwardDependency
+
+    * [可选] 如果可以支持原地更新，实现 ForwardInplaceOption 和 BackwardInplaceOption
+
+  * 将 OperatorProperty 类和参数类注册到 MXNet
