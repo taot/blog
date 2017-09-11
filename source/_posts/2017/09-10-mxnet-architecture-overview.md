@@ -8,6 +8,8 @@ tags:
 
 翻译自 https://mxnet.incubator.apache.org/architecture/overview.html
 
+<!--more-->
+
 ![mxnet architecture overview](overview.png)
 
 这张图展示了 MXNet 的主要模块，以及他们之间的交互。这些模块是：
@@ -128,3 +130,79 @@ virtual void Push(OprHandle op, Context exec_ctx) = 0;
 ### API Reference
 
 略。
+
+## Operators (操作符) in MXNet
+
+在 MXNet 中，操作符是一个类，这个类包括了实际的计算逻辑和一些能够帮助系统进行优化的辅助信息，像原地更新和自动微分之类的。要更好地理解这篇文档剩余的部分，我们建议你熟悉一下 mshadow 库，因为所有的操作符运算都是运行在系统运行时提供的类似张量（tensor-like）的数据结构 mshadow::TBlob 上。
+
+MXNet 的操作符接口允许你：
+
+  * 通过指定原地更新来减少内存分配。
+
+  * 对 Python 接口隐藏一些内部参数。
+
+  * 定义输入张量和输出张量之间的关系，允许系统为你检查它们的形状（shape）。
+
+  * 为进行计算（例如调用 cudnn 操作）向系统请求额外的临时控件。
+
+### Operator Interface (操作接口)
+
+Forward 是核心操作接口：
+
+```cpp
+virtual void Forward(const OpContext &ctx,
+                     const std::vector<TBlob> &in_data,
+                     const std::vector<OpReqType> &req,
+                     const std::vector<TBlob> &out_data,
+                     const std::vector<TBlob> &aux_states) = 0;
+```
+
+OpContext 结构：
+
+```cpp
+struct OpContext {
+    int is_train;
+    RunContext run_ctx;
+    std::vector<Resource> requested;
+}
+```
+
+它描述了此操作符是否在训练阶段或测试阶段，它应该运行在哪个设备上（run_ctx），以及已经请求了的资源（将在之后的章节谈到）。
+
+  * in_data 和 out_data 分别代表输入和输出张量。系统已经分配好所有张量使用的空间。。
+
+  * req 表示计算结果应如何写入 out_data。换句话说，req.size() == out_data.size()，并且 req[i] 对应于  out_data[i] 的写入类型。
+
+  * OpReqType 的定义为：
+  ```cpp
+  enum OpReqType {
+      kNullOp,
+      kWriteTo,
+      kWriteInplace,
+      kAddTo
+  };
+  ```
+
+  通常，所有 out_data 的类型应该为 kWriteTo，表明所提供的 out_data 张量就是无数据的内存块，操作符应当直接向它里面写入数据。然而在某些情况下，例如在计算梯度张量时，我们最好可以对结果进行累加，而不是直接覆盖张量原有数据，这样我们就不用每次分配额外的内存。在这种情况下，相对应的 req 类型应被设置为 kAddTo，表示应当使用 += 操作。
+
+  * aux_states 被设计为辅助计算的张量，当前没有用到。
+
+除了 Foward 操作，你可以选择实现 Backward 接口：
+
+```cpp
+virtual void Backward(const OpContext &ctx,
+                      const std::vector<TBlob> &out_grad,
+                      const std::vector<TBlob> &in_data,
+                      const std::vector<TBlob> &out_data,
+                      const std::vector<OpReqType> &req,
+                      const std::vector<TBlob> &in_grad,
+                      const std::vector<TBlob> &aux_states);
+```
+
+这个接口遵循和 Forward 接口相同的设计原则，不同之处在于它使用了 out_grad, in_data 和 out_data，并且输出 in_grad 作为结果。这里的命名策略与 Torch 类似，可以总结为下图：
+
+[input/output semantics figure]
+
+某些操作可能不需要所有参数：out_grad, in_data, 和 out_data。你可以用 OperatorProperty 类的 DeclareBackwardDependency 接口来指定它们的依赖关系。
+
+### Operator Property (操作的属性)
