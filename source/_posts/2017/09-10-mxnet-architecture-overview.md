@@ -424,3 +424,223 @@ MXNET_REGISTER_OP_PROPERTY(Convolution, ConvolutionOpProperty);
     * [可选] 如果可以支持原地更新，实现 ForwardInplaceOption 和 BackwardInplaceOption
 
   * 将 OperatorProperty 类和参数类注册到 MXNet
+
+## 统一 NDArray 操作和符号操作
+
+NDArray 操作和符号操作类似，区别在于在没有完全的依赖关系图时有时你不能进行原地更新。然而，NDArray 和符号操作的底层逻辑是一样的。SimpleOp，一个统一的操作 API，关注于操作符的基本元素，统一了不同的调用方式。因为多数数学操作符有一个或两个操作数，而更多个操作数使得依赖关系相关的优化游泳，统一的操作符是被专门设计用于一元和二元操作。
+
+让我们考虑操作的基本元素。理想情况下，你只需要用函数和导数来描述一个操作。让我们将操作限制在一元和二元。我们可以如何分类所有操作，来最大化优化原地更新的可能性？我们注意到可以按照操作数的数量来对函数进行区分。而导数有一点复杂。要创建一个依赖关系图，你需要知道输出值，输入数据是否在之后的梯度中被用到。一元 API 中的梯度函数是被操作计算出来的。
+
+在我们了解更多关于 SimpleOp 接口的事情，我们建议你浏览 [mshadow library guide](https://github.com/dmlc/mshadow/tree/master/guide)，因为实际的计算是在 mshadow:TBlob 中进行的。
+
+在以下例子中，我们会创建一个实现 smooth l1 loss 函数的操作，这是 l1 loss 和 l2 loss 的混合体。这个函数可以被写成如下形式：
+
+```cpp
+loss = outside_weight .* f(inside_weight .* (data - label))
+grad = outside_weight .* inside_weight .* f'(inside_weight .* (data - label))
+```
+
+.* 表示对应元素之间相乘，f 和 f' 是 smooth l1 loss 函数，我们暂时假设它们在 mshadow 中可以找到。乍看起来，不可能把它实现成一元或二元操作。但是我们有符号的自动微分，这简化了 f 和 f' 的损失函数。这个损失函数并不比 sin 或者 abs 函数复杂，我们当然可以将它实现为一元操作。
+
+## SimpleOp: 统一的 Operator API
+
+### Define Shapes (定义形状)
+
+mshadow 库需要显式地分配内存，因此在计算开始前，就需要定好所有数据的形状。在定义函数和导数之前，先让我们检查输入的形状并且提供输出的形状。
+
+···cpp
+typedef TShape (*UnaryShapeFunction)(const TShape& src,const EnvArguments& env);
+typedef TShape (*BinaryShapeFunction)(const TShape& const lhs, TShape& rhs, const EnvArguments& env);
+···
+
+你可以使用 mshadow::TShape 来检查输入形状并且指定输出形状。如果你不定义这个函数，则默认的输出形状和输入形状相同。如果是二元操作，默认情况下，系统会检查 lhs 和 rhs 的形状是否相同。
+
+你还可以用这些函数来检查是否存在额外的参数和资源。参考 EnvArguments 的用法。
+
+在我们开始 smooth l1 loss 的例子之前，我们在头文件 smooth_l1_unary-inl.h 中定义了 XPU，值为 cpu 或者 gpu，以便于我们可以在 smooth_l1_unary.cc 和 smoth_l1_unary.cu 中使用相同的代码。
+
+```cpp
+#include
+#if defined(__CUDACC__)
+#define XPU gpu
+#else
+#define XPU cpu
+#endif
+```
+
+在 smooth l1 loss 的例子中，因为输入输出有相同的形状，我们就直接用默认的行为：
+
+```cpp
+inline TShape SmoothL1Shape_(const TShape& src, const EnvArguments& env) {
+    return TShape(src);
+}
+```
+
+### 定义函数
+
+创建一个有一个输出 (mshadow::TBlob) 的一元或二元函数。
+
+```cpp
+typedef void (*UnaryFunction)(const TBlob& src,
+                              const EnvArguments& env,
+                              TBlob* ret,
+                              OpReqType req,
+                              RunContext ctx);
+typedef void (*BinaryFunction)(const TBlob& lhs,
+                               const TBlob& rhs,
+                               const EnvArguments& env,
+                               TBlob* ret,
+                               OpReqType req,
+                               RunContext ctx);
+```
+
+  * 函数按照输入参数的类型区分。
+
+  * RunContext ctx 包含运行时所需要的信息。
+
+  ```cpp
+  struct RunContext {
+      void *stream;  // the stream of the device, can be NULL or Stream* in GPU mode
+      template<typename xpu> inline mshadow::Stream<xpu>* get_stream() // get mshadow stream from Context
+  }  // namespace mxnet
+  ```
+
+  从 ctx 获取一个流的例子:
+
+  ```cpp
+  mshadow::stream *s = ctx.get_stream();
+  ```
+
+  * OpReqType req 指明计算结果该如何写入 ret:
+
+  ```cpp
+  enum OpReqType {
+      kNullOp, // no operation, do not write anything
+      kWriteTo, // write gradient to provided space
+      kWriteInplace, // perform an in-place write
+      kAddTo // add to the provided space
+  };
+  ```
+
+  ASSIGN_DISPATH(out, req, exp) 是 operator_util.h 中定义的一个宏，用来简化 OpReqType 的使用，它会检查 req 并且进行赋值。
+
+在 smooth l1 loss 例子中，我们使用 UnaryFunction 来定义操作的函数。
+
+```cpp
+template<typename xpu>
+void SmoothL1Forward_(const TBlob& src,
+                      const EnvArguments& env,
+                      TBlob *ret,
+                      OpReqType req,
+                      RunContext ctx) {
+    using namespace mshadow;
+    using namespace mshadow::expr;
+    mshadow::Stream<xpu> *s = ctx.get_stream<xpu>();
+    real_t sigma2 = env.scalar * env.scalar;
+    MSHADOW_TYPE_SWITCH(ret->type_flag_, DType, {
+        mshadow::Tensor<xpu, 2, DType> out = ret->get<xpu, 2, DType>(s);
+        mshadow::Tensor<xpu, 2, DType> in = src.get<xpu, 2, DType>(s);
+        ASSIGN_DISPATCH(out, req,
+            F<mshadow_op::smooth_l1_loss>(in, ScalarExp<DType>(sigma2)));
+    });
+}
+```
+
+从 RunContext 获取到 mshadow::Stream 之后，我们从 mshadow::TBlob 拿到 mshadow::Tensor。mshadow::F 是创建一个 mshadow 表达式的快捷方式。宏 MSHADOW_TYPE_SWITCH(type, DType, ...) 处理不同类型的细节，宏 ASSIGN_DISPATCH(out, req, exp) 检查 OpReqType 并且执行相应动作。 sigma2 是这个损失函数中的一个特殊的参数，我们后面会讲到。
+
+### 定义梯度（可选）
+
+```cpp
+// depending only on out_grad
+typedef void (*UnaryGradFunctionT0)(const OutputGrad& out_grad,
+                                    const EnvArguments& env,
+                                    TBlob* in_grad,
+                                    OpReqType req,
+                                    RunContext ctx);
+// depending only on out_value
+typedef void (*UnaryGradFunctionT1)(const OutputGrad& out_grad,
+                                    const OutputValue& out_value,
+                                    const EnvArguments& env,
+                                    TBlob* in_grad,
+                                    OpReqType req,
+                                     RunContext ctx);
+// depending only on in_data
+typedef void (*UnaryGradFunctionT2)(const OutputGrad& out_grad,
+                                    const Input0& in_data0,
+                                    const EnvArguments& env,
+                                    TBlob* in_grad,
+                                    OpReqType req,
+                                    RunContext ctx);
+```
+
+二元运算的梯度函数拥有相似的结构，除了 Input, TBlob 和 OpReqType 的数量翻倍。
+
+GradFunctionArgument
+
+Input0, Input, OutputValue 和 OutputGrad 都和 GradFunctionArgument 有相同的结构，定义如下：
+
+```cpp
+struct GradFunctionArgument {
+    TBlob data;
+}
+```
+
+在 smooth l1 loss 例子中，注意其中是一个 f'(x)，在计算导数时用到了输入数据，所以应当使用 UnaryGradFunctionT2。我们还需要用 out_grade 乘以之前结果的 in_grad 来用链式法则计算梯度。
+
+```cpp
+template<typename xpu>
+void SmoothL1BackwardUseIn_(const OutputGrad& out_grad,
+                            const Input0& in_data0,
+                            const EnvArguments& env,
+                            TBlob *in_grad,
+                            OpReqType req,
+                            RunContext ctx) {
+    using namespace mshadow;
+    using namespace mshadow::expr;
+    mshadow::Stream<xpu> *s = ctx.get_stream<xpu>();
+    real_t sigma2 = env.scalar * env.scalar;
+    MSHADOW_TYPE_SWITCH(in_grad->type_flag_, DType, {
+        mshadow::Tensor<xpu, 2, DType> src = in_data0.data.get<xpu, 2, DType>(s);
+        mshadow::Tensor<xpu, 2, DType> ograd = out_grad.data.get<xpu, 2, DType>(s);
+        mshadow::Tensor<xpu, 2, DType> igrad = in_grad->get<xpu, 2, DType>(s);
+        ASSIGN_DISPATCH(igrad, req,
+            ograd * F<mshadow_op::smooth_l1_gradient>(src, ScalarExp<DType>(sigma2)));
+    });
+}
+```
+
+### 把 SimpleOp 注册到 MXNet
+
+在创建 shape, function 和 gradient 之后，要把它们放到 NDArray 和符号运算中。可以使用 operator_util.h 中定义的宏来简化这个流程。
+
+```cpp
+MXNET_REGISTER_SIMPLE_OP(Name, DEV)
+    .set_shape_function(Shape)
+    .set_function(DEV::kDevMask, Function<XPU>, SimpleOpInplaceOption)
+    .set_gradient(DEV::kDevMask, Gradient<XPU>, SimpleOpInplaceOption)
+    .describe("description");
+```
+
+SimpleOpInplaceOption 的定义：
+
+```cpp
+enum SimpleOpInplaceOption {
+    kNoInplace,  // do not allow inplace in arguments
+    kInplaceInOut,  // allow inplace in with out (unary)
+    kInplaceOutIn,  // allow inplace out_grad with in_grad (unary)
+    kInplaceLhsOut,  // allow inplace left operand with out (binary)
+    kInplaceOutLhs  // allow inplace out_grad with lhs_grad (binary)
+};
+```
+
+在我们的例子中，我们的梯度依赖于函数的输入数据，因此函数不能原地更新数据。输出的梯度在梯度计算后就不被用到了，因此梯度可以原地更新。
+
+```cpp
+MXNET_REGISTER_SIMPLE_OP(smooth_l1, XPU)
+    .set_function(XPU::kDevMask, SmoothL1Forward_<XPU>, kNoInplace)
+    .set_gradient(XPU::kDevMask, SmoothL1BackwardUseIn_<XPU>, kInplaceOutIn)
+    .set_enable_scalar(true)
+    .describe("Calculate Smooth L1 Loss(lhs, scalar)");
+```
+
+不要忘了之前的讨论，在没有用 set_shape_function 来设置 shape 的时候，输出的 shape 和输入的 shape 一直。我们后面会讨论 set_enable_scalar。
