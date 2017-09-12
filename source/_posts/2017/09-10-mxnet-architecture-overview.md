@@ -644,3 +644,78 @@ MXNET_REGISTER_SIMPLE_OP(smooth_l1, XPU)
 ```
 
 不要忘了之前的讨论，在没有用 set_shape_function 来设置 shape 的时候，输出的 shape 和输入的 shape 一直。我们后面会讨论 set_enable_scalar。
+
+### NDArray 运算符总结
+
+  * 创建一个 shape 函数用来决定输出 shape
+
+  * 创建一个函数作为前向阶段，选择一个合适的函数类型
+
+  * 创建一个梯度作为后向阶段，选择一个合适的梯度类型
+
+  * 注册运算符
+
+## SimpleOp 的其他信息
+
+### 在 EnvArguments 上使用 SimpleOp
+
+一些操作需要一个标量作为输入，比如一个梯度标量，一组用来控制算法行为的关键字参数，或者一个用来加速计算的临时空间。EnvArguments 提供额外的参数和资源来计算更易扩展和更高效。
+
+```cpp
+struct EnvArguments {
+    real_t scalar;  // scalar argument, if enabled
+    std::vector<std::pair<std::string, std::string> > kwargs;  // keyword arguments
+    std::vector<Resource> resource;  // pointer to the resources requested
+};
+```
+
+要启用这些额外的功能，需要更多的注册参数。为避免参数的混淆，scalar 和 kwargs 不能同时使用。要启用 scalar，在注册时使用 set_enable_scalar(bool enable_scalar)。之后，在前向函数中，使用 env.scalar 来访问 scalar 参数，其中 env 是函数的参数 EnvArguments。
+
+要启用 kwargs，在注册时使用 set_enable_kwargs(bool enable_kwargs)。在前向函数和后向梯度时，额外的参数就会包含在 env.kwargs 中，类型是 std::vector<std::string>。使用 DMLC 参数接口来解析关键字参数。更多细节请参考 [guide on parameter structure](https://github.com/dmlc/dmlc-core/blob/master/doc/parameter.md)。
+
+mshadow::Random 或者临时内存空间之类的额外资源可以通过 EnvArguments.resoure 被请求和访问。注册方式为 set_resource_request(ResourceRequest req) 或者 set_resource_request(const std::vector)，其中 mxnet::ResourceRequest 被定义为：
+
+```cpp
+struct ResourceRequest {
+    enum Type {  // Resource type, indicating what the pointer type is
+        kRandom,  // mshadow::Random object
+        kTempSpace  // A dynamic temp space that can be arbitrary size
+    };
+    Type type;  // type of resources
+};
+```
+
+相关例子请参见 src/operator/loss_binary_op-inl.h。
+
+在我们的 smooth l1 loss 例子中，需要有一个标量输入来标记损失函数的折点。因此，在注册时，我们使用 set_enable_scalar(true)，并且在函数和梯度中使用 env.scalar。
+
+### 实现一个张量操作 (Tensor Operation)
+
+因为使用 mshadow 库来进行计算，有时候没有我们用到的函数，我们可以在运算中实现张量操作。如果是元素一一对应的函数，你可以实现一个 mxnet::op::mshadow_op。src/operator/mshadow_op.h 中有许多 mshadow_op 的例子。 mshadow_op 是表达式的映射器。它们处理函数的标量形式。细节请见 [mshadow expression API guide](https://github.com/dmlc/mshadow/tree/master/doc)。
+
+如果一个操作不能用元素对元素的方式实现，比如 softmax 损失函数和梯度，那么你就需要实现一个新的张量运算。你需要直接创建 mshadow 函数和 mshadow::cuda 函数。更多例子请见 src/ooperator/roi_pooling.cc。
+
+在我们的 smooth l1 loss 例子中，我们创建了两个映射器，分别是标量情形下的 smooth l1 loss 和 gradient。
+
+```cpp
+namespace mshadow_op {
+    struct smooth_l1_loss {
+        // a is x, b is sigma2
+        MSHADOW_XINLINE static real_t Map(real_t a, real_t b) {
+            if (a > 1.0f / b) {
+                return a - 0.5f / b;
+            } else if (a < -1.0f / b) {
+                return -a - 0.5f / b;
+            } else {
+                return 0.5f * a * a * b;
+            }
+        }
+    };
+}
+```
+
+梯度 (gradient) 与之相似，可以在 src/operator/smooth_l1_unary-inl.h 中找到。
+
+### 两个以上操作数
+
+新的统一 API 被设计为完成运算符的基本功能。对于有两个以上参数的运算符，或一个以上输出，或者需要更多的特性，请见原始的 [Operator API](https://mxnet.incubator.apache.org/architecture/overview.html#operators-in-mxnet)。
