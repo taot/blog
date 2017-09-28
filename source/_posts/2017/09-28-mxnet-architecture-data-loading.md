@@ -131,4 +131,45 @@ threadediter 维护一个固定大小的缓冲区，并且当缓冲区不满的�
 
 ## MXNet IO Python 接口
 
-我们将 IO 对象作为 numpy 中的 iterator
+我们使 IO 对象成为 numpy 中的迭代器，然后用户就可以方便地用 for 循环和 next() 函数来方便地访问数据。在 MXNet 中定义一个迭代器和定义一个符号式操作非常类似。
+
+以下代码展示了如何定义一个 cifar 数据迭代器：
+
+```python
+dataiter = mx.io.ImageRecordIter(
+    # Dataset Parameter, indicating the data file, please check the data is already there
+    path_imgrec="data/cifar/train.rec",
+    # Dataset Parameter, indicating the image size after preprocessing
+    data_shape=(3,28,28),
+    # Batch Parameter, tells how many images in a batch
+    batch_size=100,
+    # Augmentation Parameter, when offers mean_img, each image will subtract the mean value at each pixel
+    mean_img="data/cifar/cifar10_mean.bin",
+    # Augmentation Parameter, randomly crop a patch of the data_shape from the original image
+    rand_crop=True,
+    # Augmentation Parameter, randomly mirror the image horizontally
+    rand_mirror=True,
+    # Augmentation Parameter, randomly shuffle the data
+    shuffle=False,
+    # Backend Parameter, preprocessing thread number
+    preprocess_threads=4,
+    # Backend Parameter, prefetch buffer size
+    prefetch_buffer=1)
+```
+
+大体上说，要创建一个迭代器，你需要定义五种参数：
+
+  * **数据集参数：** 访问数据所需的信息，例如文件路径、输入形状
+  * **分批参数：** 指定如何构造一个分批（batch），例如分批大小（batch size）
+  * **增强参数：** 输入图像上应该应用何种增强操作，（例如，截取、镜像）
+  * **后端参数：** 控制后端线程的行为来隐藏数据加载的开销
+  * **辅助参数：** 提供选项来辅助调试
+
+通常，**数据集参数** 和 **分批参数** 是必须指定的，否则你无法创建数据分批 (data batch)。其他参数在需要时可以被指定。理想情况下，我们应当将 MX Data IO 独立到模块中，其中有些可能对用户有用，例如：
+
+  * **高效的预读：** 允许用户为他们自定义的数据格式写能够自动获得多线程预读支持的数据加载器。
+  * **数据变形：** 图像的自动截取、镜像，等等。允许用户使用这些工具，或者插入他们自己的数据变换器（例如，他们可能想要添加某种相关的随机噪声）
+
+## 未来的扩展
+
+将来，我们可能考虑为我们的数据 IO 添加一些扩展。特别地，我们可能为包括图像分割、物体定位和语音识别等应用添加专门的支持。当这些应用跑在 MXNet 上以后，我们将提供更多的细节。
