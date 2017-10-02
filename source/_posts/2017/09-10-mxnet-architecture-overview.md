@@ -12,37 +12,37 @@ tags:
 
 ![mxnet architecture overview](overview.png)
 
-这张图展示了 MXNet 的主要模块，以及他们之间的交互。这些模块是：
+这张图展示了 MXNet 的主要模块和组件，以及它们之间的交互。这些模块是：
 
-  * Runtime Dependency Engine: 根据读写的依赖关系，安排并执行各种操作。
+  * Runtime Dependency Engine: 根据运算之间读写的依赖关系，调度并执行它们。
 
-  * Storage Allocator: 高效地分配回收主机（CPU）和设备（GPU）的内存块。
+  * Storage Allocator: 高效地分配和回收主机（CPU）和设备（GPU）的内存。
 
   * Resource Manager: 管理全局资源，比如随机数生成器和临时空间。
 
-  * NDArray: 动态、异步的 n-维数组，为 MXNet 提供灵活的命令式编程。
+  * NDArray: 动态的异步的 n-维数组，为 MXNet 提供灵活的命令式编程。
 
   * Symbolic Execution: 静态符号图执行器，提供高效的符号图执行和优化。
 
-  * Operator: 定义静态的前向和梯度计算（backprop）操作。
+  * Operator: 定义静态的前向和梯度计算（backprop）的运算符。
 
-  * SimpleOp: 以统一的方式扩展 NDArray 操作和符号操作的操作符。
+  * SimpleOp: 以统一的方式扩展 NDArray 运算符和符号式运算符的运算符。
 
-  * Symbol Construction: 符号构建，提供构建计算图（神经网络配置）的方式。
+  * Symbol Construction: 提供创建计算图（网络配置）的方式。
 
-  * KVStore: 键值存储接口，提供高效的参数同步。
+  * KVStore: 键值存储接口，提供高效的参数同步机制。
 
-  * Data Loading (IO): 高效的数据加载和修改。
+  * Data Loading (IO): 高效的数据加载和更新。
 
 # MXNet 系统模块
 
 ## Execution Engine (执行引擎)
 
-你不仅可以使用 MXNet 引擎进行深度学习，还可以使用它来解决任何领域相关的问题。MXNet 被设计成可以解决一个通用问题：根据依赖关系来执行一系列的函数。有依赖关系的任意两个函数应该按照顺序执行。为提升性能，没有依赖关系的函数可以被并行执行。更详细的讨论，请见 [notes on the dependency engine](https://mxnet.incubator.apache.org/architecture/note_engine.html)。
+你不仅可以使用 MXNet 引擎进行深度学习，还可以使用它来解决任何专业领域的问题。MXNet 的设计目标是解决通用问题：根据依赖关系来执行一系列的函数。有依赖关系的任意两个函数应该按顺序执行。为提升性能，没有依赖关系的函数可以被并行执行。关于这方面的更详细的讨论，请见 [notes on the dependency engine](https://mxnet.incubator.apache.org/architecture/note_engine.html)。
 
 ### Interface (接口)
 
-这个 API 是执行引擎的核心接口：
+下面这个 API 是执行引擎的核心接口：
 
 ``` cpp
 virtual void PushSync(Fn exec_fun, Context exec_ctx,
@@ -50,9 +50,9 @@ virtual void PushSync(Fn exec_fun, Context exec_ctx,
                       std::vector<VarHandle> const& mutate_vars) = 0;
 ```
 
-这个 API 允许你将一个函数（exec_fun）和它的执行上下文信息（context）以及依赖关系一起推送给执行引擎。exec_ctx 是 exec_fun 的执行上下文，const_vars 是函数读取的变量，mutate_vars 是函数将要修改的变量。执行引擎提供以下保证：
+这个 API 允许你将一个函数（exec_fun）和它的执行上下文（context）以及依赖关系一起推送给执行引擎。exec_ctx 是 exec_fun 的执行上下文，const_vars 是函数要读取的变量，mutate_vars 是函数要修改的变量。执行引擎提供以下保证：
 
-> 任意两个函数，如果它们会修改同一个变量，则它们的执行顺序与它们被推送到引擎的顺序是一致的。
+> 任意两个函数，如果它们要修改同一个变量，则它们的执行顺序与它们被推送到引擎的顺序是一致的。
 
 ### Function (函数)
 
@@ -62,7 +62,7 @@ virtual void PushSync(Fn exec_fun, Context exec_ctx,
 using Fn = std::function<void(RunContext)>;
 ```
 
-RunContext 包含了运行时的信息，这些信息由引擎来决定。
+RunContext 包含了运行时的信息，这些信息由引擎来确定。
 
 ```cpp
 struct RunContext {
@@ -72,46 +72,46 @@ struct RunContext {
 };
 ```
 
-另外，你也可以使用 mxnet::engine::DAGEngine::Fn, 它有相同的类型定义。
+或者，你也可以使用 mxnet::engine::DAGEngine::Fn, 它有相同的类型定义。
 
-所有的函数都在引擎的内部线程中执行。在这个模型下，将会阻塞的函数（通常处理磁盘或网络之类的 I/O 任务）发送给引擎通常不是个好主意，因为它会占用执行线程，并且降低吞吐量。我们为阻塞的情形提供了另一个异步的函数：
+所有的函数都在引擎的内部线程中执行。在这种模型中，把会阻塞的函数（通常是处理磁盘或网络之类的 I/O 任务的操作）发送给引擎通常不是个好主意，因为它会占用执行线程，并且降低吞吐量。在这种情况下，我们提供了另一个异步的函数：
 
 ```cpp
 using Callback = std::function<void()>;
 using AsyncFn = std::function<void(RunContext, Callback)>;
 ```
 
-在 AsyncFn 中，你可以在退出函数之前把需要阻塞的部分传到你自己的线程。引擎在 Callback 退出之前都会认为函数没有执行完成。
+在 AsyncFn 中，你可以把阻塞的部分传回到你自己的线程，然后退出函数。引擎在调用 Callback 之后才会认为 AsyncFn 函数执行完成。
 
 ### Context (上下文)
 
-你可以指定函数执行的上下文。这通常包括函数应该执行在 CPU 还是 GPU 上，如果是 GPU，还可以指定使用哪个 GPU。Context 和 RunContext 不同。Context 包含设备类型 (GPU/CPU) 和设备 id，而 RunContext 包含只有运行时才能决定的信息，比如函数应该在哪个流上被执行。
+你可以指定函数执行的上下文。这通常包括函数该在 CPU 还是 GPU 上运行，如果指定使用 GPU，还可以指定哪个 GPU。Context 和 RunContext 不同，Context 包含设备类型 (GPU/CPU) 和设备 id，而 RunContext 包含只有运行时才能确定的信息，比如函数应该在哪个流上执行。
 
 ### VarHandle
 
-VarHandle 是用来指定函数的依赖关系的。MXNet 引擎在设计上，和其他模块是松耦合的，因此 VarHandle 就像一个引擎提供的记号，你可以用它来标记函数能使用或修改的外部资源。VarHandle 是很轻量的，所以创建、删除或复制都只有很小的开销。在将函数推送给引擎时，你需要在 const_vars 向量中指定函数将要使用（只读）的变量，在 mutate_vars 向量中指定函数将要修改的变量。引擎使用以下规则来解析函数之间的依赖关系：
+VarHandle 是用来指定函数之间的依赖关系的。MXNet 引擎被设计为与其他模块之间是松耦合的，因此 VarHandle 就像一个引擎提供的标记，你可以用它来代表函数能使用或修改的外部资源。VarHandle 很轻量，所以创建、删除或复制都只有很小的开销。在把函数推送给引擎时，你需要在 const_vars 向量中指定函数将要使用（只读）的变量，在 mutate_vars 向量中指定函数将要修改的变量。引擎使用以下规则来解析函数之间的依赖关系：
 
 > 如果两个函数修改至少一个共同的变量，那么它们的执行顺序和它们被推送的顺序是一致的。
 
-举个例子，如果 Fn1 和 Fn2 都修改 V2，并且 Fn2 是在 Fn1 之后被推送，则执行引擎保证 Fn2 在 Fn1 之后执行。如果 Fn1 和 Fn2 都使用（只读）V2，则它们的执行顺序是随机的。
+举个例子，如果 Fn1 和 Fn2 都要修改 V2，并且 Fn2 是在 Fn1 之后被推送的，则执行引擎保证 Fn2 在 Fn1 之后执行。如果 Fn1 和 Fn2 都使用（只读）V2，则它们的执行顺序是随机的。
 
-这样的设计允许引擎按照尽量少分配内存的方式来安排函数的调用。例如，DNN 的权重更新函数可以使用 += 操作在原地更新权重，而不是每次都生成新的权重数组。
+这样的设计允许引擎最小化内存分配的方式来调度运算。例如，DNN 的权重更新函数可以使用 += 操作来进行原地操作，而不是每次都生成新的数组。
 
 你可以使用 NewVar() 来创建变量，用 PushDelete() 来删除变量。
 
 ### Push and Wait (推送和等待)
 
-所有的 Push API 都是异步的。Push API 调用会立即返回，不管 Fn 是否执行完成。这允许引擎在用户线程推送函数的时候并行开始执行计算。Push API 不是线程安全的，在一个时刻，只有一个线程可以调用 Push API。
+所有的 Push API 都是异步的，函数调用会立即返回，不管 Fn 是否执行完成。这允许引擎在用户线程推送函数的时候并行开始执行计算。Push API 不是线程安全的，在同一个时刻，只有一个线程可以调用 Push API。
 
-如果你想要等待某个特定的 Fn 执行完成，你可以在传入一个 Callback，并且在你的 Fn 结束的时候调用它。
+如果你想要等待某个特定的 Fn 执行完成，你可以传入一个 Callback，并且在你的 Fn 结束的时候调用它。
 
-如果你想等待所有涉及到某个变量的所有 Fn 都结束，可以使用 WaitForVar(var) API。
+如果你想等待与某个变量相关的所有 Fn 都结束，可以使用 WaitForVar(var) API。
 
-如果你想等待所有推送的 Fn 都结束，使用 WaitForAll() API。
+如果你想等待所有已推送的 Fn 都结束，可以使用 WaitForAll() API。
 
-### Save Object Creation Cost ()
+### Save Object Creation Cost (减少创建对象的开销)
 
-在某些情况下，你需要在较长的时间区间内推送多个函数到引擎。如果这些函数的计算开销比较小，复制匿名函数和创建变量的开销则变得相对高了。这种情况下，我们提供了 API 来提前创建 OprHandle：
+在某些情况下，你需要在较长一段时间内把多个函数推送到引擎。如果这些函数的计算量不大，那么复制匿名函数和创建变量的开销就会变得相对比较高。这种情况下，我们提供了 API 来提前创建 OprHandle：
 
 ```cpp
 virtual OprHandle NewOperator(AsyncFn fn,
@@ -119,35 +119,35 @@ virtual OprHandle NewOperator(AsyncFn fn,
                               std::vector<VarHandle> const& mutate_vars) = 0;
 ```
 
-你可以连续推送 OprHandle 而不用重复创建它：
+你可以连续推送 OprHandle 而不用重复创建它们：
 
 ```cpp
 virtual void Push(OprHandle op, Context exec_ctx) = 0;
 ```
 
-要删除它，调用 DeleteOperator(OprHandle op) API。要保证在调用这个 API 之前，操作已经完成。
+要删除它，调用 DeleteOperator(OprHandle op) API。要保证在调用这个 API 之前，运算符已经完成计算。
 
 ### API Reference
 
 略。
 
-## Operators (操作符) in MXNet
+## Operators (运算符) in MXNet
 
-在 MXNet 中，操作符是一个类，这个类包括了实际的计算逻辑和一些能够帮助系统进行优化的辅助信息，像原地更新和自动微分之类的。要更好地理解这篇文档剩余的部分，我们建议你熟悉一下 mshadow 库，因为所有的操作符运算都是运行在系统运行时提供的类似张量（tensor-like）的数据结构 mshadow::TBlob 上。
+在 MXNet 中，运算符是一个类，包括了实际的计算逻辑和一些帮助系统进行优化的辅助信息，比如原地更新和自动求导之类的。要理解这篇文档余下的部分，我们建议你熟悉一下 mshadow 库，因为所有的运算符都是在系统运行时提供的类似张量（tensor-like）的数据结构 mshadow::TBlob 上进行计算。
 
-MXNet 的操作符接口允许你：
+MXNet 的运算符接口允许你：
 
   * 通过指定原地更新来减少内存分配。
 
-  * 对 Python 接口隐藏一些内部参数。
+  * 对 Python 接口隐藏一些内部参数，使接口更简洁。
 
   * 定义输入张量和输出张量之间的关系，允许系统为你检查它们的形状（shape）。
 
-  * 为进行计算（例如调用 cudnn 操作）向系统请求额外的临时控件。
+  * 为执行计算（如调用 cudnn 的函数）向系统请求额外的临时空间。
 
-### Operator Interface (操作接口)
+### Operator Interface (运算符接口)
 
-Forward 是核心操作接口：
+Forward 是核心的运算符接口：
 
 ```cpp
 virtual void Forward(const OpContext &ctx,
@@ -157,7 +157,7 @@ virtual void Forward(const OpContext &ctx,
                      const std::vector<TBlob> &aux_states) = 0;
 ```
 
-OpContext 结构：
+OpContext 结构体：
 
 ```cpp
 struct OpContext {
@@ -167,13 +167,14 @@ struct OpContext {
 }
 ```
 
-它描述了此操作符是否在训练阶段或测试阶段，它应该运行在哪个设备上（run_ctx），以及已经请求了的资源（将在之后的章节谈到）。
+它描述了此运算符是在训练阶段还是测试阶段，它应该运行在哪个设备上（run_ctx），以及已经请求的资源（这个会在之后的章节讨论）。
 
-  * in_data 和 out_data 分别代表输入和输出张量。系统已经分配好所有张量使用的空间。。
+  * in_data 和 out_data 分别代表输入和输出张量。系统已经为所有张量分配好了空间。
 
-  * req 表示计算结果应如何写入 out_data。换句话说，req.size() == out_data.size()，并且 req[i] 对应于  out_data[i] 的写入类型。
+  * req 表示计算结果如何写入 out_data。换句话说，req.size() == out_data.size()，并且 req[i] 对应于  out_data[i] 的写入类型。
 
   * OpReqType 的定义为：
+
   ```cpp
   enum OpReqType {
       kNullOp,
@@ -183,11 +184,11 @@ struct OpContext {
   };
   ```
 
-  通常，所有 out_data 的类型应该为 kWriteTo，表明所提供的 out_data 张量就是无数据的内存块，操作符应当直接向它里面写入数据。然而在某些情况下，例如在计算梯度张量时，我们最好可以对结果进行累加，而不是直接覆盖张量原有数据，这样我们就不用每次分配额外的内存。在这种情况下，相对应的 req 类型应被设置为 kAddTo，表示应当使用 += 操作。
+  通常情况下，所有 out_data 的类型应该为 kWriteTo，表明所提供的 out_data 张量是原始的内存块，运算符应当直接向它里面写入数据。但是在某些情况下，比如在计算梯度张量时，我们最好对结果进行累加，而不是直接覆盖张量原有的内容，这样我们就不用每次分配额外的内存。在这种情况下，相对应的 req 类型应被设置为 kAddTo，表示应当调用 +=。
 
-  * aux_states 被设计为辅助计算的张量，当前没有用到。
+  * aux_states 被设计为辅助计算的张量，目前没有用到。
 
-除了 Foward 操作，你可以选择实现 Backward 接口：
+除了 Foward 操作，你可以视需要选择实现 Backward 接口：
 
 ```cpp
 virtual void Backward(const OpContext &ctx,
@@ -199,15 +200,15 @@ virtual void Backward(const OpContext &ctx,
                       const std::vector<TBlob> &aux_states);
 ```
 
-这个接口遵循和 Forward 接口相同的设计原则，不同之处在于它使用了 out_grad, in_data 和 out_data，并且输出 in_grad 作为结果。这里的命名策略与 Torch 类似，可以总结为下图：
+这个接口遵循与 Forward 相同的设计原则，不同之处是接口中 out_grad, in_data 和 out_data 是给定的，需要计算 in_grad 作为结果。这里的命名规则与 Torch 类似，可以总结为下图：
 
 [input/output semantics figure]
 
-某些操作可能不需要所有参数：out_grad, in_data, 和 out_data。你可以用 OperatorProperty 类的 DeclareBackwardDependency 接口来指定它们的依赖关系。
+某些运算符可能可以省略某个参数：out_grad, in_data, 和 out_data。你可以用 OperatorProperty 类的 DeclareBackwardDependency 接口来指定它们的依赖关系。
 
-### Operator Property (操作的属性)
+### Operator Property (运算符属性)
 
-卷积可以有多种实现方式，你可能想在各种方式之间切换以实现最佳性能。因此，我们把操作的语义接口从他的实现接口（Operator 类）中剥离出来，放到 OperatorProperty 类。OperatorProperty 的接口包含：
+卷积可以有多种实现方式，你可能想在各种方式之间切换以实现最佳性能。因此，我们把运算符的语义接口从他的实现接口（Operator 类）中剥离出来，放到 OperatorProperty 类中。OperatorProperty 接口包含：
 
   * InferShape
 
@@ -221,16 +222,16 @@ virtual void Backward(const OpContext &ctx,
 
     * 告诉系统每个输入张量和输出张量的形状，以便在调用 Forward 和 Backward 之前分配空间。
 
-    * 在执行之前检查参数的大小，保证没有明显的错误。in_shape 中指定的形状是被系统设置的（从前一个操作的 out_shape 中得到）。当获得的信息不足以推断形状时，InferShape 返回 false，并且当参数形状不一致时报错。
+    * 在执行之前做检查，保证没有明显的错误。in_shape 中指定的形状是系统设置的（从前一个操作的 out_shape 中得到）。当已知的信息不足以推断出形状时，InferShape 返回 false，并且当参数形状不一致时会抛出异常。
 
-    * 请求资源: 像 cudnnConvolutionForward 之类的操作计算时需要一个工作区（workspace）。如果系统能够管理工作区，就可以进行优化，比如重用空间等。为此，MXNet 定义了两个接口：
+    * 请求资源: 像 cudnnConvolutionForward 之类的运算符在计算时需要一个工作区（workspace）。如果系统能够管理工作区，就可以对它进行优化，比如重用空间等。为此，MXNet 定义了两个接口：
 
     ```cpp
     virtual std::vector<ResourceRequest> ForwardResource(const std::vector<TShape> &in_shape) const;
     virtual std::vector<ResourceRequest> BackwardResource(const std::vector<TShape> &in_shape) const;
     ```
 
-    ResourceRequest 结构（在 resource.h 中）目前仅包括一个类型标志：
+    ResourceRequest 结构体（在 resource.h 中）目前仅包含一个类型标志：
 
     ```cpp
     struct ResourceRequest {
@@ -242,7 +243,7 @@ virtual void Backward(const OpContext &ctx,
     };
     ```
 
-    如果 ForwardResource 和 BackwardResource 返回非空的数组，系统就会通过 Operator 类的 Forward 和 Backward 接口的 ctx 参数，来提供相应的资源。要访问这些资源，就使用：
+    如果 ForwardResource 和 BackwardResource 返回非空的数组，系统会通过 Operator 类的 Forward 和 Backward 接口的 ctx 参数，来提供相应的资源。大体上说，要访问这些资源，使用：
 
     ```cpp
     auto tmp_space_res = ctx.requested[kTempSpace].get_space(some_shape, some_stream);
@@ -251,7 +252,7 @@ virtual void Backward(const OpContext &ctx,
 
     示例请见 src/operator/cudnn_convolution-inl.h
 
-  * Backward dependency (反向依赖): 让我们看一下两个不同的操作的函数声明（为了展示，我们给每个参数加上了名字）：
+  * Backward dependency (反向依赖): 让我们看一下两个不同的运算符的的函数签名（为方便展示，我们给每个参数加上了名字）：
 
   ```cpp
   void FullyConnectedForward(TBlob weight, TBlob in_data, TBlob out_data);
@@ -261,7 +262,7 @@ virtual void Backward(const OpContext &ctx,
   void PoolingBackward(TBlob in_data, TBlob out_data, TBlob out_grad, TBlob in_grad);
   ```
 
-  注意 FullyConnectedForward 中的 out_data 没有在 FullyConnectedBackward 中被用到，而 PoolingBackward 用到了 PoolingForward 的所有参数。因此对于 FullyConnectedForward，out_data 张量可以在使用完之后马上释放空间，因为相应的反向操作不需要它。这给系统提供机会来尽早清理掉一些张量。我们提供了一个接口来指明这种情况：
+  注意 FullyConnectedForward 中的 out_data 没有在 FullyConnectedBackward 中被用到，而 PoolingBackward 用到了 PoolingForward 的所有参数。因此对于 FullyConnectedForward，out_data 张量在使用完之后马上可以释放空间，因为相应的反向函数不需要它。这给系统提供了机会来尽早做垃圾回收。我们提供了一个接口来指定：
 
   ```cpp
   virtual std::vector<int> DeclareBackwardDependency(
@@ -287,7 +288,7 @@ virtual void Backward(const OpContext &ctx,
   }
   ```
 
-  * In place Option (原地更新选项)：为了节省更多的内存，你可以使用原地更新（in-place updates）。它们适用于输入张量和输出张量有相同形状时的元素对元素的操作（element-wise operations）。你使用以下接口来指定原地更新：
+  * In place Option (原地更新选项)：为了节省更多的内存，你可以使用原地更新（in-place updates）。它们适用于输入张量和输出张量有相同形状时的元素操作（element-wise operations）。你使用以下接口来指定原地更新：
 
   ```cpp
   virtual std::vector<std::pair<int, void*>> ElewiseOpProperty::ForwardInplaceOption(
@@ -306,9 +307,9 @@ virtual void Backward(const OpContext &ctx,
 
   这段代码告诉系统，在 Forward 中，in_data[0] 和 out_data[0] 张量可以共用同一块内存空间，而在 Backward 中，out_grad[0] 和 in_grad[0] 可以共用空间。
 
-  > **重要:** 即使你按照以上代码指定了共享选项，系统不保证输入和输出张量就会共享同一块空间。实际上，这只是给系统一个建议，最终系统来决定是否要共享空间。不管怎样，这个决定对你来说是透明的，所以实际实现 Forward 和 Backward 的时候，不需要考虑这些。
+  > **重要:** 即使你按照以上代码指定了共享选项，系统也不保证输入和输出张量会共享同一块空间。实际上，这只是给系统一个建议，最终还是系统自己来决定是否要共用空间。不管怎样，这个决定对你来说是透明的，所以在实现 Forward 和 Backward 的时候，不需要考虑这些。
 
-  * Expose Operator to Python (将操作暴露给 Python): 因为 C++ 的限制，你需要实现以下接口：
+  * Expose Operator to Python (将运算符暴露给 Python): 因为 C++ 的限制，你需要实现以下接口：
 
   ```cpp
   // initial the property class from a list of key-value string pairs
@@ -329,11 +330,11 @@ virtual void Backward(const OpContext &ctx,
 
 ### 从 Operator Property 创建 Operator
 
-OperatorProperty 包含了 Operator 的所有的语义上的属性。它也负责为计算过程创建 Operator。
+OperatorProperty 包含了 Operator 的所有的语义属性。它也负责为实际计算创建 Operator。
 
 #### 创建 Operator
 
-实现 OperatorProperty 中的这个接口：
+实现 OperatorProperty 中的如下这个接口：
 
 ```cpp
 virtual Operator* CreateOperator(Context ctx) const = 0;
@@ -357,7 +358,7 @@ public:
 
 #### Operator 的参数化
 
-当你实现一个卷积操作时，你需要知道核的大小 (kernel size)，步长的大小 (stride size)，填补的大小 (padding size)，等等。这些参数应当在 Forward 和 Backward 接口被调用之前传给 Operator。你可以定义一个 ConvolutionParam 结构，如下：
+当你实现一个卷积运算符时，你需要知道核的大小 (kernel size)，步长的大小 (stride size)，填充的大小 (padding size)，等等。这些参数应当在 Forward 和 Backward 接口被调用之前传给 Operator。你可以定义一个 ConvolutionParam 结构，如下：
 
 ```cpp
 #include
@@ -392,70 +393,70 @@ private:
 };
 ```
 
-使用以下宏来把 Operator 的 Property 类和 Param 类注册到 MXNet：
+使用以下宏来把 Operator 的 Property 类和 Parameter 类注册到 MXNet：
 
 ```cpp
 DMLC_REGISTER_PARAMETER(ConvolutionParam);
 MXNET_REGISTER_OP_PROPERTY(Convolution, ConvolutionOpProperty);
 ```
 
-第一个参数是名字字符串，第二个参数是 Property 的类名。
+第一个参数是名字，第二个参数是 Property 的类名。
 
-### 关于接口的总结
+### 接口总结
 
-到目前为止，我们基本上涵盖了定义一个 Operator 的全部接口。让我们回顾以下：
+到目前为止，我们基本上涵盖了定义一个 Operator 的全部接口。让我们回顾一下：
 
   * 使用 Operator 接口来实现你的计算逻辑 (Forward 和 Backward)。
 
   * 使用 OperatorProperty 接口来：
 
-    * 向操作传递参数（可以使用 Init 接口）
+    * 向运算符类传递参数（可以使用 Init 接口）
 
-    * 使用 CreateOperator 接口来创建操作
+    * 使用 CreateOperator 接口来创建运算符
 
-    * 正确地实现描述操作的接口，例如参数名，等等
+    * 正确地实现描述操作符的接口，例如参数名，等等
 
     * 正确地实现 InferShape 接口来设置输出张量的形状
 
-    * [可选] 如果需要额外的资源，实现 ForwardResource 和 BackwardResource
+    * [可选] 如果需要额外的资源，检查 ForwardResource 和 BackwardResource
 
-    * [可选] 如果 Backward 不需要用到 Forward 的所有输入和输出，实现 DeclareBackwardDependency
+    * [可选] 如果 Backward 不需要用到 Forward 的所有输入和输出，检查 DeclareBackwardDependency
 
-    * [可选] 如果可以支持原地更新，实现 ForwardInplaceOption 和 BackwardInplaceOption
+    * [可选] 如果支持原地更新，检查 ForwardInplaceOption 和 BackwardInplaceOption
 
   * 将 OperatorProperty 类和参数类注册到 MXNet
 
-## 统一 NDArray 操作和符号操作
+## 统一 NDArray 运算符和符号运算符
 
-NDArray 操作和符号操作类似，区别在于在没有完全的依赖关系图时有时你不能进行原地更新。然而，NDArray 和符号操作的底层逻辑是一样的。SimpleOp，一个统一的操作 API，关注于操作符的基本元素，统一了不同的调用方式。因为多数数学操作符有一个或两个操作数，而更多个操作数使得依赖关系相关的优化游泳，统一的操作符是被专门设计用于一元和二元操作。
+NDArray 运算符和符号运算符类似，区别是在没有完整的依赖关系图时，有时你不能原地更新。然而，NDArray 运算符和符号运算符的底层逻辑是一样的。SimpleOp 是一个新的统一的运算符 API，统一了不同的方式。因为多数数学运算符有一个或两个操作数，而更多个操作数使得和依赖关系相关的优化有用，统一的运算符是被专门设计用于一元和二元运算。
 
-让我们考虑操作的基本元素。理想情况下，你只需要用函数和导数来描述一个操作。让我们将操作限制在一元和二元。我们可以如何分类所有操作，来最大化优化原地更新的可能性？我们注意到可以按照操作数的数量来对函数进行区分。而导数有一点复杂。要创建一个依赖关系图，你需要知道输出值，输入数据是否在之后的梯度中被用到。一元 API 中的梯度函数是被操作计算出来的。
+让我们考虑运算符的基本元素。理想情况下，你只需要用函数和导数来描述一个运算符。让我们将讨论限制在一元和二元运算符。我们该如何分类所有操作符，来使原地更新的可能性最大？注意你可以按照操作数的数量来对函数进行分类。而导数更复杂一些。要创建一个依赖关系图，你需要知道输出值，输入数据是否在之后的梯度中被用到。统一 API 中的梯度函数是用操作数的类型来区分的。
 
-在我们了解更多关于 SimpleOp 接口的事情，我们建议你浏览 [mshadow library guide](https://github.com/dmlc/mshadow/tree/master/guide)，因为实际的计算是在 mshadow:TBlob 中进行的。
+在我们继续了解 SimpleOp 接口之前，我们建议你浏览 [mshadow library guide](https://github.com/dmlc/mshadow/tree/master/guide)，因为计算是在 mshadow:TBlob 中进行的。
 
-在以下例子中，我们会创建一个实现 smooth l1 loss 函数的操作，这是 l1 loss 和 l2 loss 的混合体。这个函数可以被写成如下形式：
+在以下例子中，我们会创建一个实现 smooth l1 loss 函数的运算符，这是 l1 loss 和 l2 loss 的混合体。这个函数可以被写成如下形式：
 
 ```cpp
 loss = outside_weight .* f(inside_weight .* (data - label))
 grad = outside_weight .* inside_weight .* f'(inside_weight .* (data - label))
 ```
 
-.* 表示对应元素之间相乘，f 和 f' 是 smooth l1 loss 函数，我们暂时假设它们在 mshadow 中可以找到。乍看起来，不可能把它实现成一元或二元操作。但是我们有符号的自动微分，这简化了 f 和 f' 的损失函数。这个损失函数并不比 sin 或者 abs 函数复杂，我们当然可以将它实现为一元操作。
+.* 代表元素乘，f 和 f' 是 smooth l1 loss 函数，我们先假设它们在 mshadow 中可以找到。乍看起来，不可能把它实现成一元或二元操作。但是我们有符号的自动微分，这简化了 f 和 f' 的损失函数。这个损失函数并不比 sin 或者 abs 函数复杂，我们可以将它实现为一元操作符。
 
 ## SimpleOp: 统一的 Operator API
 
 ### Define Shapes (定义形状)
 
-mshadow 库需要显式地分配内存，因此在计算开始前，就需要定好所有数据的形状。在定义函数和导数之前，先让我们检查输入的形状并且提供输出的形状。
+mshadow 库需要显式地分配内存，因此在计算开始前，就需要定义好所有数据的形状。在定义函数和导数之前，先让我们检查输入的形状并且提供输出的形状。
 
 ···cpp
 typedef TShape (*UnaryShapeFunction)(const TShape& src,const EnvArguments& env);
 typedef TShape (*BinaryShapeFunction)(const TShape& const lhs, TShape& rhs, const EnvArguments& env);
 ···
 
-你可以使用 mshadow::TShape 来检查输入形状并且指定输出形状。如果你不定义这个函数，则默认的输出形状和输入形状相同。如果是二元操作，默认情况下，系统会检查 lhs 和 rhs 的形状是否相同。
+你可以使用 mshadow::TShape 来检查输入形状并且指定输出形状。如果你不定义这个函数，则默认的输出形状和输入形状相同。如果是二元运算符，默认情况下，系统会检查 lhs 和 rhs 的形状是否相同。
 
-你还可以用这些函数来检查是否存在额外的参数和资源。参考 EnvArguments 的用法。
+你还可以用这些函数来检查是否有额外的参数和资源。可以参考 EnvArguments 的用法。
 
 在我们开始 smooth l1 loss 的例子之前，我们在头文件 smooth_l1_unary-inl.h 中定义了 XPU，值为 cpu 或者 gpu，以便于我们可以在 smooth_l1_unary.cc 和 smoth_l1_unary.cu 中使用相同的代码。
 
@@ -468,7 +469,7 @@ typedef TShape (*BinaryShapeFunction)(const TShape& const lhs, TShape& rhs, cons
 #endif
 ```
 
-在 smooth l1 loss 的例子中，因为输入输出有相同的形状，我们就直接用默认的行为：
+在 smooth l1 loss 的例子中，因为输入输出有相同的形状，我们就直接用默认行为：
 
 ```cpp
 inline TShape SmoothL1Shape_(const TShape& src, const EnvArguments& env) {
@@ -478,7 +479,7 @@ inline TShape SmoothL1Shape_(const TShape& src, const EnvArguments& env) {
 
 ### 定义函数
 
-创建一个有一个输出 (mshadow::TBlob) 的一元或二元函数。
+创建有一个输出 (mshadow::TBlob) 的一元或二元函数。
 
 ```cpp
 typedef void (*UnaryFunction)(const TBlob& src,
@@ -524,7 +525,7 @@ typedef void (*BinaryFunction)(const TBlob& lhs,
 
   ASSIGN_DISPATH(out, req, exp) 是 operator_util.h 中定义的一个宏，用来简化 OpReqType 的使用，它会检查 req 并且进行赋值。
 
-在 smooth l1 loss 例子中，我们使用 UnaryFunction 来定义操作的函数。
+在 smooth l1 loss 例子中，我们使用 UnaryFunction 来定义操作符的函数。
 
 ```cpp
 template<typename xpu>
@@ -573,7 +574,7 @@ typedef void (*UnaryGradFunctionT2)(const OutputGrad& out_grad,
                                     RunContext ctx);
 ```
 
-二元运算的梯度函数拥有相似的结构，除了 Input, TBlob 和 OpReqType 的数量翻倍。
+二元运算符的梯度函数拥有相似的结构，不同之处在于 Input, TBlob 和 OpReqType 的数量翻倍。
 
 GradFunctionArgument
 
@@ -585,7 +586,7 @@ struct GradFunctionArgument {
 }
 ```
 
-在 smooth l1 loss 例子中，注意其中是一个 f'(x)，在计算导数时用到了输入数据，所以应当使用 UnaryGradFunctionT2。我们还需要用 out_grade 乘以之前结果的 in_grad 来用链式法则计算梯度。
+在 smooth l1 loss 例子中，注意用到输入来计算梯度的是 f'(x)，所以 UnaryGradFunctionT2 是适用的。我们还需要用 out_grade 乘以结果的 in_grad 来用链式法则计算梯度。
 
 ```cpp
 template<typename xpu>
@@ -611,7 +612,7 @@ void SmoothL1BackwardUseIn_(const OutputGrad& out_grad,
 
 ### 把 SimpleOp 注册到 MXNet
 
-在创建 shape, function 和 gradient 之后，要把它们放到 NDArray 和符号运算中。可以使用 operator_util.h 中定义的宏来简化这个流程。
+在创建 shape, function 和 gradient 之后，要把它们放到 NDArray 运算符和符号运算符中。可以使用 operator_util.h 中定义的宏来简化这个过程。
 
 ```cpp
 MXNET_REGISTER_SIMPLE_OP(Name, DEV)
@@ -633,7 +634,7 @@ enum SimpleOpInplaceOption {
 };
 ```
 
-在我们的例子中，我们的梯度依赖于函数的输入数据，因此函数不能原地更新数据。输出的梯度在梯度计算后就不被用到了，因此梯度可以原地更新。
+在我们的例子中，我们的梯度依赖于函数的输入，因此函数不能原地更新数据。输出的梯度在梯度计算后就不被用到了，因此梯度可以原地更新。
 
 ```cpp
 MXNET_REGISTER_SIMPLE_OP(smooth_l1, XPU)
@@ -643,15 +644,15 @@ MXNET_REGISTER_SIMPLE_OP(smooth_l1, XPU)
     .describe("Calculate Smooth L1 Loss(lhs, scalar)");
 ```
 
-不要忘了之前的讨论，在没有用 set_shape_function 来设置 shape 的时候，输出的 shape 和输入的 shape 一直。我们后面会讨论 set_enable_scalar。
+不要忘了之前的讨论，在没有用 set_shape_function 来设置 shape 的时候，默认会强制输出的 shape 和输入的 shape 一致。我们后面会讨论 set_enable_scalar。
 
 ### NDArray 运算符总结
 
   * 创建一个 shape 函数用来决定输出 shape
 
-  * 创建一个函数作为前向阶段，选择一个合适的函数类型
+  * 创建一个函数作为前向过程，选择一个合适的函数类型
 
-  * 创建一个梯度作为后向阶段，选择一个合适的梯度类型
+  * 创建一个梯度作为反向过程，选择一个合适的梯度类型
 
   * 注册运算符
 
@@ -659,7 +660,7 @@ MXNET_REGISTER_SIMPLE_OP(smooth_l1, XPU)
 
 ### 在 EnvArguments 上使用 SimpleOp
 
-一些操作需要一个标量作为输入，比如一个梯度标量，一组用来控制算法行为的关键字参数，或者一个用来加速计算的临时空间。EnvArguments 提供额外的参数和资源来计算更易扩展和更高效。
+一些操作需要一个标量作为输入，比如一个梯度标量，一组用来控制算法行为的关键字参数，或者一个用来加速计算的临时空间。EnvArguments 提供额外的参数和资源来使计算更易扩展和更高效。
 
 ```cpp
 struct EnvArguments {
@@ -669,11 +670,11 @@ struct EnvArguments {
 };
 ```
 
-要启用这些额外的功能，需要更多的注册参数。为避免参数的混淆，scalar 和 kwargs 不能同时使用。要启用 scalar，在注册时使用 set_enable_scalar(bool enable_scalar)。之后，在前向函数中，使用 env.scalar 来访问 scalar 参数，其中 env 是函数的参数 EnvArguments。
+要启用这些额外的功能，需要更多的注册参数。为避免参数的混淆，scalar 和 kwargs 不能同时使用。要启用 scalar，在注册时使用 set_enable_scalar(bool enable_scalar)。之后，在前向函数和梯度中，可以用函数测参数 EnvArguments env 中的 env.scalar 来访问 scalar。
 
-要启用 kwargs，在注册时使用 set_enable_kwargs(bool enable_kwargs)。在前向函数和后向梯度时，额外的参数就会包含在 env.kwargs 中，类型是 std::vector<std::string>。使用 DMLC 参数接口来解析关键字参数。更多细节请参考 [guide on parameter structure](https://github.com/dmlc/dmlc-core/blob/master/doc/parameter.md)。
+要启用 kwargs，在注册时使用 set_enable_kwargs(bool enable_kwargs)。在前向函数和反向梯度时，额外的参数包含在 env.kwargs 中，被定义为 std::vector<std::string>。使用 DMLC 参数接口来简化关键字参数的解析。更多细节请参考 [guide on parameter structure](https://github.com/dmlc/dmlc-core/blob/master/doc/parameter.md)。
 
-mshadow::Random 或者临时内存空间之类的额外资源可以通过 EnvArguments.resoure 被请求和访问。注册方式为 set_resource_request(ResourceRequest req) 或者 set_resource_request(const std::vector)，其中 mxnet::ResourceRequest 被定义为：
+mshadow::Random 或者临时内存空间之类的额外资源可以通过 EnvArguments.resoure 来请求和访问。注册方式为 set_resource_request(ResourceRequest req) 或者 set_resource_request(const std::vector)，其中 mxnet::ResourceRequest 被定义为：
 
 ```cpp
 struct ResourceRequest {
@@ -691,9 +692,9 @@ struct ResourceRequest {
 
 ### 实现一个张量操作 (Tensor Operation)
 
-因为使用 mshadow 库来进行计算，有时候没有我们用到的函数，我们可以在运算中实现张量操作。如果是元素一一对应的函数，你可以实现一个 mxnet::op::mshadow_op。src/operator/mshadow_op.h 中有许多 mshadow_op 的例子。 mshadow_op 是表达式的映射器。它们处理函数的标量形式。细节请见 [mshadow expression API guide](https://github.com/dmlc/mshadow/tree/master/doc)。
+因为使用 mshadow 库来进行计算，有时候没有我们用到的函数，我们可以在运算符中实现张量操作。如果你把函数定义为元素 (element-wise) 操作，那么可以实现一个 mxnet::op::mshadow_op。src/operator/mshadow_op.h 中有许多 mshadow_op 的例子。 mshadow_op 是表达式映射器。它们处理函数的标量形式。细节请见 [mshadow expression API guide](https://github.com/dmlc/mshadow/tree/master/doc)。
 
-如果一个操作不能用元素对元素的方式实现，比如 softmax 损失函数和梯度，那么你就需要实现一个新的张量运算。你需要直接创建 mshadow 函数和 mshadow::cuda 函数。更多例子请见 src/ooperator/roi_pooling.cc。
+如果一个操作不能用元素操作的方式实现，比如 softmax 损失函数和梯度，那么你就需要实现一个新的张量运算。你需要直接创建 mshadow 函数和 mshadow::cuda 函数。更多例子请见 src/ooperator/roi_pooling.cc。
 
 在我们的 smooth l1 loss 例子中，我们创建了两个映射器，分别是标量情形下的 smooth l1 loss 和 gradient。
 
@@ -718,4 +719,4 @@ namespace mshadow_op {
 
 ### 两个以上操作数
 
-新的统一 API 被设计为完成运算符的基本功能。对于有两个以上参数的运算符，或一个以上输出，或者需要更多的特性，请见原始的 [Operator API](https://mxnet.incubator.apache.org/architecture/overview.html#operators-in-mxnet)。
+新的统一 API 被设计为完成运算符的基本功能。对于有两个以上输入、或一个以上输出、或是需要更多特性的运算符，请见原始的 [Operator API](https://mxnet.incubator.apache.org/architecture/overview.html#operators-in-mxnet)。
