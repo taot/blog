@@ -690,11 +690,11 @@ struct ResourceRequest {
 
 在我们的 smooth l1 loss 例子中，需要有一个标量输入来标记损失函数的折点。因此，在注册时，我们使用 set_enable_scalar(true)，并且在函数和梯度中使用 env.scalar。
 
-### 实现一个张量操作 (Tensor Operation)
+### 实现一个张量运算 (Tensor Operation)
 
-因为使用 mshadow 库来进行计算，有时候没有我们用到的函数，我们可以在运算符中实现张量操作。如果你把函数定义为元素 (element-wise) 操作，那么可以实现一个 mxnet::op::mshadow_op。src/operator/mshadow_op.h 中有许多 mshadow_op 的例子。 mshadow_op 是表达式映射器。它们处理函数的标量形式。细节请见 [mshadow expression API guide](https://github.com/dmlc/mshadow/tree/master/doc)。
+因为使用 mshadow 库来进行计算，有时候没有我们用到的函数，我们可以在运算符中实现张量运算。如果你把函数定义为元素 (element-wise) 运算，那么你可以把它实现成一个 mxnet::op::mshadow_op。src/operator/mshadow_op.h 中有许多 mshadow_op 的例子。 mshadow_op 是表达式映射器。它们处理函数的标量形式。细节请见 [mshadow expression API guide](https://github.com/dmlc/mshadow/tree/master/doc)。
 
-如果一个操作不能用元素操作的方式实现，比如 softmax 损失函数和梯度，那么你就需要实现一个新的张量运算。你需要直接创建 mshadow 函数和 mshadow::cuda 函数。更多例子请见 src/ooperator/roi_pooling.cc。
+如果一个运算不能用元素 (element-wise) 方式实现，比如 softmax 损失函数和梯度，那么你就需要实现一个新的张量运算。你需要直接创建 mshadow 函数和 mshadow::cuda 函数。更多例子请见 src/ooperator/roi_pooling.cc。
 
 在我们的 smooth l1 loss 例子中，我们创建了两个映射器，分别是标量情形下的 smooth l1 loss 和 gradient。
 
