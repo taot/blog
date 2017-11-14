@@ -4,6 +4,7 @@ date: 2017-11-05 14:51:46
 tags:
     - deeplearning
     - linux
+    - pytorch
 ---
 
 终于组装了一台电脑用于学习深度学习。折腾了几天，大体把 Arch Linux 和 PyTorch 装上了，不过还没有比较完整地验证是否安装正确。在这里大概地记录一下安装步骤，供以后重装系统时参考。
@@ -205,7 +206,9 @@ yaourt -S fcitx-sogoupinyin
 
 ## 安装 Nvidia 驱动, CUDA 和 cuDNN
 
-下载 NVidia 官方提供的驱动 (http://us.download.nvidia.com/XFree86/Linux-x86_64/384.98/NVIDIA-Linux-x86_64-384.98.run)，安装后重启。注意不要使用安装程序生成的 Xorg.conf，可能会造成无法进入 X 的问题。
+~~下载 [Nvidia 官方提供的驱动](http://us.download.nvidia.com/XFree86/Linux-x86_64/384.98/NVIDIA-Linux-x86_64-384.98.run)，安装后重启。注意不要使用安装程序生成的 Xorg.conf，可能会造成无法进入 X 的问题。~~
+
+2017-11-14 更新：NVidia 官方驱动在 pacman 更新 Linux 内核后无法工作，可能需要重新装一遍驱动，没有测试。直接装了 pacman 上的 nvidia-dkms 包，可以正常工作。
 
 安装 CUDA 和 cuDNN。当前 Arch Linux 的 rolling release （2017-11-05）中是 CUDA 9， 和 cuDNN 7，装了 PyTorch 之后似乎是好用的（简单试验了一下，未做进一步验证，可能后面会发现问题）。本来打算在 Nvidia 官网上下载 CUDA 8 和 cuDNN 6，无奈 CUDA 8 总是下载到 80% 左右就突然挂了。
 
