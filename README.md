@@ -6,8 +6,17 @@ The blog is generated with [Hexo](https://hexo.io/).
 
 ### Install Hexo
 
+Install Hexo CLI in global environment
+
 ```bash
 npm install -g hexo-cli
+```
+
+Install Hexo in the blog project
+
+```bash
+cd blog/
+npm install
 ```
 
 ### Create New Post
